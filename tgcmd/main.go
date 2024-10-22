@@ -8,11 +8,7 @@ import (
 	"runtime"
 )
 
-func main() {
-	root := &cobra.Command{
-		Use:   "tg",
-		Short: "ThinkGO框架命令行工具",
-		Long: `
+const ThinkCli = `
   _______ _____         _____ _      _____ 
  |__   __/ ____|       / ____| |    |_   _|
     | | | |  __ ______| |    | |      | |  
@@ -21,7 +17,13 @@ func main() {
     |_|  \_____|       \_____|______|_____|
 
 [TG-CLI]用于快速创建项目,快速生成controller,dao,entity,service通用代码的工具
-`,
+`
+
+func main() {
+	root := &cobra.Command{
+		Use:   "tg",
+		Short: "ThinkGO框架命令行工具",
+		Long:  ThinkCli,
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) == 0 {
 				cmd.Help()

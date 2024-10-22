@@ -1,9 +1,17 @@
-package tgutl
+package tg
 
 import (
-	"github.com/gin-gonic/gin"
+	"encoding/json"
 	"net/http"
 )
+
+// Context 上下文
+type Context struct {
+	Response http.ResponseWriter
+	Request  *http.Request
+	index    int
+	handlers []HandlerFunc
+}
 
 // errorCode 定义错误码
 type errorCode struct {
@@ -17,8 +25,8 @@ var ErrorCode = &errorCode{
 	EXCEPTION: 20001, // 服务或代码异常类错误
 }
 
-// Result 统一返回结果
-type Result struct {
+// result 统一返回结果
+type result struct {
 	Code    int         `json:"code"`
 	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
@@ -37,7 +45,7 @@ type FailOptions struct {
 }
 
 // Success 成功输出信息
-func Success(ctx *gin.Context, data interface{}, options ...SuccessOptions) {
+func (ctx *Context) Success(data interface{}, options ...SuccessOptions) {
 	var opt SuccessOptions
 	if len(options) > 0 {
 		opt = options[0]
@@ -50,7 +58,7 @@ func Success(ctx *gin.Context, data interface{}, options ...SuccessOptions) {
 	if message == "" {
 		message = "ok"
 	}
-	ctx.JSON(http.StatusOK, &Result{
+	ctx.JSON(http.StatusOK, &result{
 		Code:    code,
 		Message: message,
 		Data:    data,
@@ -58,7 +66,7 @@ func Success(ctx *gin.Context, data interface{}, options ...SuccessOptions) {
 }
 
 // Fail 异常输出信息
-func Fail(ctx *gin.Context, message string, options ...FailOptions) {
+func (ctx *Context) Fail(message string, options ...FailOptions) {
 	var opt FailOptions
 	if len(options) > 0 {
 		opt = options[0]
@@ -75,4 +83,28 @@ func Fail(ctx *gin.Context, message string, options ...FailOptions) {
 		Code:    errCode,
 		Message: message,
 	})
+}
+
+// JSON 输出JSON
+func (ctx *Context) JSON(code int, data any) {
+	// 设置响应头
+	ctx.Response.Header().Set("Content-Type", "application/json")
+	// 设置状态码
+	ctx.Response.WriteHeader(code)
+	// 将数据编码为JSON
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		http.Error(ctx.Response, "服务异常解析失败", http.StatusInternalServerError)
+		return
+	}
+	// 写入响应体
+	ctx.Response.Write(jsonData)
+}
+
+// Next 中间件向下执行
+func (ctx *Context) Next() {
+	ctx.index++
+	if ctx.index < len(ctx.handlers) {
+		ctx.handlers[ctx.index](ctx)
+	}
 }
