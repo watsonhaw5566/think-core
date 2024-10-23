@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/fatih/color"
 	"github.com/think-go/tg/tgcfg"
+	"github.com/think-go/tg/tgutl"
 	"net"
 	"net/http"
 	"os"
@@ -67,7 +68,7 @@ func (e *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	method := r.Method
 	_, ok := e.handlerFuncMap[r.RequestURI]
-	if ok {
+	if ok || tgutl.HasSuffix(r.RequestURI) {
 		e.methodHandler(r.RequestURI, method, e.handlerFuncMap[r.RequestURI][method], ctx)
 	} else {
 		ctx.Fail("路由不存在", FailOptions{
@@ -81,8 +82,8 @@ func (e *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (e *Engine) Run() {
 	// 全局异常捕获中间件
 	e.Use(RecoveryMiddleware)
-	// 静态资源路径
-	//e.StaticFS(tgcfg.Config.Server.StaticPath, http.Dir(tgcfg.Config.Server.StaticPath))
+	// 静态文件服务
+	e.Use(FileServerMiddleware)
 
 	// http服务
 	cmd := &http.Server{

@@ -2,7 +2,9 @@ package tg
 
 import (
 	"fmt"
+	"github.com/think-go/tg/tgcfg"
 	"github.com/think-go/tg/tglog"
+	"github.com/think-go/tg/tgutl"
 	"net/http"
 	"runtime"
 )
@@ -28,6 +30,22 @@ func RecoveryMiddleware() HandlerFunc {
 				})
 			}
 		}()
+		ctx.Next()
+	}
+}
+
+// FileServerMiddleware 静态资源服务中间件
+func FileServerMiddleware() HandlerFunc {
+	return func(ctx *Context) {
+		if tgutl.HasSuffix(ctx.Request.RequestURI) {
+			// 如果是静态资源路径，使用文件服务器处理请求
+			staticPrefix := tgcfg.Config.Server.StaticPrefix
+			if staticPrefix != "/" {
+				staticPrefix = "/" + staticPrefix + "/"
+			}
+			http.StripPrefix(staticPrefix, http.FileServer(http.Dir(tgcfg.Config.Server.StaticPath))).ServeHTTP(ctx.Response, ctx.Request)
+			return
+		}
 		ctx.Next()
 	}
 }

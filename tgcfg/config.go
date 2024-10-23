@@ -9,9 +9,11 @@ var Config *config
 
 // 服务相关配置
 type server struct {
-	Mode       string `yaml:"mode"`
-	Address    string `yaml:"address"`
-	StaticPath string `yaml:"staticPath"`
+	Address      string `yaml:"address"`
+	TplPath      string `yaml:"tplPath"`
+	StaticPrefix string `yaml:"staticPrefix"`
+	StaticPath   string `yaml:"staticPath"`
+	StaticSuffix string `yaml:"staticSuffix"`
 }
 
 // 日志相关配置

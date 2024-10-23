@@ -47,6 +47,39 @@ func (group *routerGroup) POST(relativePath string, handlerFunc HandlerFunc, mid
 	group.handler(http.MethodPost, relativePath, handlerFunc, middlewareFunc...)
 }
 
+// DELETE DELETE请求
+func (group *routerGroup) DELETE(relativePath string, handlerFunc HandlerFunc, middlewareFunc ...MiddlewareFunc) {
+	group.handler(http.MethodDelete, relativePath, handlerFunc, middlewareFunc...)
+}
+
+// PUT PUT请求
+func (group *routerGroup) PUT(relativePath string, handlerFunc HandlerFunc, middlewareFunc ...MiddlewareFunc) {
+	group.handler(http.MethodPut, relativePath, handlerFunc, middlewareFunc...)
+}
+
+// PATCH PATCH请求
+func (group *routerGroup) PATCH(relativePath string, handlerFunc HandlerFunc, middlewareFunc ...MiddlewareFunc) {
+	group.handler(http.MethodPatch, relativePath, handlerFunc, middlewareFunc...)
+}
+
+// OPTIONS OPTIONS请求
+func (group *routerGroup) OPTIONS(relativePath string, handlerFunc HandlerFunc, middlewareFunc ...MiddlewareFunc) {
+	group.handler(http.MethodOptions, relativePath, handlerFunc, middlewareFunc...)
+}
+
+// HEAD HEAD请求
+func (group *routerGroup) HEAD(relativePath string, handlerFunc HandlerFunc, middlewareFunc ...MiddlewareFunc) {
+	group.handler(http.MethodHead, relativePath, handlerFunc, middlewareFunc...)
+}
+
+// ALL ALL请求
+func (group *routerGroup) ALL(relativePath string, handlerFunc HandlerFunc, middlewareFunc ...MiddlewareFunc) {
+	methods := []string{http.MethodGet, http.MethodPost, http.MethodDelete, http.MethodPut, http.MethodPatch, http.MethodOptions, http.MethodHead}
+	for _, method := range methods {
+		group.handler(method, relativePath, handlerFunc, middlewareFunc...)
+	}
+}
+
 // handler http绑定的函数
 func (group *routerGroup) handler(method string, relativePath string, handlerFunc HandlerFunc, middlewareFunc ...MiddlewareFunc) {
 	mergePath := path.Join(group.basePath, relativePath)

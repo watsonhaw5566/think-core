@@ -1,14 +1,17 @@
 package tgutl
 
 import (
+	"github.com/think-go/tg/tgcfg"
 	"strings"
 )
 
-// SubStringLast 截取某个字符串之后的字符串
-func SubStringLast(str string, substr string) string {
-	index := strings.Index(str, substr)
-	if index < 0 {
-		return ""
+// HasSuffix 判断路由后缀是否在文件类型组里
+func HasSuffix(url string) bool {
+	staticPrefix := strings.Split(tgcfg.Config.Server.StaticSuffix, ",")
+	for _, prefix := range staticPrefix {
+		if strings.HasSuffix(url, "."+prefix) {
+			return true
+		}
 	}
-	return str[index+len(substr):]
+	return false
 }
