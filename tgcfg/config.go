@@ -26,8 +26,9 @@ type log struct {
 
 // 配置
 type config struct {
-	Server server `yaml:"server"`
-	Log    log    `yaml:"log"`
+	Server server                 `yaml:"server"`
+	Log    log                    `yaml:"log"`
+	Extra  map[string]interface{} `yaml:",inline"`
 }
 
 func init() {

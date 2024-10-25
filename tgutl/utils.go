@@ -2,6 +2,8 @@ package tgutl
 
 import (
 	"github.com/think-go/tg/tgcfg"
+	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -14,4 +16,44 @@ func HasSuffix(url string) bool {
 		}
 	}
 	return false
+}
+
+// ConvType 类型转换
+func ConvType(t reflect.Type, value string) any {
+	switch t.Kind() {
+	case reflect.String:
+		return value
+	case reflect.Int:
+		v, err := strconv.Atoi(value)
+		if err != nil {
+			panic(err)
+		}
+		return v
+	case reflect.Int64:
+		v, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		return v
+	case reflect.Float32:
+		v, err := strconv.ParseFloat(value, 32)
+		if err != nil {
+			panic(err)
+		}
+		return float32(v)
+	case reflect.Float64:
+		v, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			panic(err)
+		}
+		return v
+	case reflect.Bool:
+		v, err := strconv.ParseBool(value)
+		if err != nil {
+			panic(err)
+		}
+		return v
+	default:
+		panic("类型转换错误")
+	}
 }

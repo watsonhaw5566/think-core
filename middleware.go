@@ -37,8 +37,8 @@ func RecoveryMiddleware() HandlerFunc {
 // FileServerMiddleware 静态资源服务中间件
 func FileServerMiddleware() HandlerFunc {
 	return func(ctx *Context) {
+		// 如果是静态资源路径，使用文件服务器处理请求
 		if tgutl.HasSuffix(ctx.Request.RequestURI) {
-			// 如果是静态资源路径，使用文件服务器处理请求
 			staticPrefix := tgcfg.Config.Server.StaticPrefix
 			if staticPrefix != "/" {
 				staticPrefix = "/" + staticPrefix + "/"

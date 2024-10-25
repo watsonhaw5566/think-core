@@ -3,8 +3,16 @@ package tg
 import (
 	"encoding/json"
 	"encoding/xml"
+	"errors"
+	"fmt"
+	"github.com/go-playground/validator/v10"
 	"github.com/think-go/tg/tgcfg"
+	"github.com/think-go/tg/tglog"
+	"github.com/tidwall/gjson"
 	"html/template"
+	"io"
+	"io/ioutil"
+	"mime/multipart"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -19,6 +27,7 @@ type Context struct {
 	index    int
 	handlers []HandlerFunc
 	latency  time.Duration
+	engine   *Engine
 }
 
 // errorCode 定义错误码
@@ -37,7 +46,7 @@ var ErrorCode = &errorCode{
 type result struct {
 	Code    int         `json:"code"`
 	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
+	Data    interface{} `json:"data"`
 }
 
 // SuccessOptions 自定义
@@ -66,7 +75,7 @@ func (ctx *Context) Success(data interface{}, options ...SuccessOptions) {
 	if message == "" {
 		message = "ok"
 	}
-	ctx.JSON(http.StatusOK, &result{
+	ctx.JSON(http.StatusOK, result{
 		Code:    code,
 		Message: message,
 		Data:    data,
@@ -87,7 +96,7 @@ func (ctx *Context) Fail(message string, options ...FailOptions) {
 	if errCode == 0 {
 		errCode = ErrorCode.VALIDATE
 	}
-	ctx.JSON(statusCode, &SuccessOptions{
+	ctx.JSON(statusCode, SuccessOptions{
 		Code:    errCode,
 		Message: message,
 	})
@@ -125,6 +134,140 @@ func (ctx *Context) XML(code int, data any) {
 	ctx.Response.Write(xmlData)
 }
 
+// GetQuery 获取GET请求参数
+func (ctx *Context) GetQuery(key string) string {
+	return ctx.Request.URL.Query().Get(key)
+}
+
+// GetDefaultQuery 获取GET请求参数,如果没有内容赋默认值
+func (ctx *Context) GetDefaultQuery(key string, value string) string {
+	val := ctx.GetQuery(key)
+	if val == "" {
+		return value
+	}
+	return val
+}
+
+// PostForm 获取POST请求参数
+func (ctx *Context) PostForm(key string, defaultFormMaxMemory ...int64) gjson.Result {
+	maxMemory := int64(32) << 20
+	if len(defaultFormMaxMemory) > 0 {
+		maxMemory = defaultFormMaxMemory[0] << 20
+	}
+	if err := ctx.Request.ParseMultipartForm(maxMemory); err != nil {
+		if !errors.Is(err, http.ErrNotMultipart) {
+			tglog.Log().Error("POST获取参数失败")
+			return gjson.Result{}
+		}
+	}
+	contentType := ctx.Request.Header.Get("Content-Type")
+	if strings.Contains(contentType, "application/json") {
+		body, err := ioutil.ReadAll(ctx.Request.Body)
+		if err != nil {
+			tglog.Log().Error("POST获取参数失败")
+			return gjson.Result{}
+		}
+		defer ctx.Request.Body.Close()
+		return gjson.Get(string(body), key)
+	}
+	value := ctx.Request.PostForm.Get(key)
+	if value == "" {
+		return gjson.Result{}
+	}
+	return gjson.Get(fmt.Sprintf(`{"%s":"%s"}`, key, value), key)
+}
+
+// PostDefaultForm 获取POST请求参数,如果没有内容赋默认值
+func (ctx *Context) PostDefaultForm(key string, value any) gjson.Result {
+	val := ctx.PostForm(key)
+	if val.String() == "" {
+		return gjson.Get(fmt.Sprintf(`{"%s":%v}`, key, value), key)
+	}
+	return val
+}
+
+// FormFile 获取文件
+func (ctx *Context) FormFile(key string) *multipart.FileHeader {
+	file, header, err := ctx.Request.FormFile(key)
+	if err != nil {
+		tglog.Log().Error(err)
+	}
+	defer file.Close()
+	return header
+}
+
+// FormFiles 获取多个文件
+func (ctx *Context) FormFiles(key string, defaultFormMaxMemory ...int64) []*multipart.FileHeader {
+	maxMemory := int64(32) << 20
+	if len(defaultFormMaxMemory) > 0 {
+		maxMemory = defaultFormMaxMemory[0] << 20
+	}
+	if err := ctx.Request.ParseMultipartForm(maxMemory); err != nil {
+		if !errors.Is(err, http.ErrNotMultipart) {
+			tglog.Log().Error("FormFiles获取多文件失败")
+			return []*multipart.FileHeader{}
+		}
+	}
+	files := ctx.Request.MultipartForm.File[key]
+	if files == nil {
+		return []*multipart.FileHeader{}
+	}
+	return files
+}
+
+// BindStructValidate 结构体参数映射,具有参数验证功能
+func (ctx *Context) BindStructValidate(req any) {
+	decoder := json.NewDecoder(ctx.Request.Body)
+	defer ctx.Request.Body.Close()
+	err := decoder.Decode(req)
+	if err != nil {
+		panic("结构体映射出错")
+	}
+	validate := validator.New()
+	err = validate.Struct(req)
+	if err != nil {
+		ctx.Fail(err.Error())
+		return
+	}
+	//rv := reflect.ValueOf(req)
+	//if rv.Kind() != reflect.Ptr || rv.IsNil() {
+	//	panic("传入必须是指针")
+	//}
+	//// 获取指针指向的元素
+	//elem := rv.Elem()
+	//if elem.Kind() != reflect.Struct {
+	//	panic("指针必须指向一个结构体")
+	//}
+	//// 获取结构体的类型
+	//typ := elem.Type()
+	//// 遍历映射赋值
+	//for i := 0; i < elem.NumField(); i++ {
+	//	field := typ.Field(i)
+	//	el := elem.Field(i)
+	//	name := field.Tag.Get("p")
+	//	switch ctx.Request.Method {
+	//	case http.MethodGet:
+	//		value := ctx.GetQuery(name)
+	//		el.SetString(value)
+	//	case http.MethodPost, http.MethodPut, http.MethodDelete:
+	//		//return ctx.PostForm(key)
+	//	default:
+	//		//return ctx.PostForm(key)
+	//	}
+	//}
+}
+
+// Stream 流式数据转发
+func (ctx *Context) Stream(data io.Reader) {
+	ctx.Response.Header().Set("Content-Type", "text/event-stream")
+	ctx.Response.Header().Set("Cache-Control", "no-cache")
+	ctx.Response.Header().Set("Connection", "keep-alive")
+	if _, err := io.Copy(ctx.Response, data); err != nil {
+		http.Error(ctx.Response, "服务异常解析失败", http.StatusInternalServerError)
+		return
+	}
+}
+
 // HTML 输出页面
 func (ctx *Context) HTML(html string) {
 	ctx.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -149,6 +292,18 @@ func (ctx *Context) View(name string, data any, expression ...string) {
 		http.Error(ctx.Response, "服务异常解析失败", http.StatusInternalServerError)
 		return
 	}
+}
+
+// Download 文件下载
+func (ctx *Context) Download(fileName string) {
+	filePath := filepath.Join(tgcfg.Config.Server.StaticPath, fileName)
+	ctx.Response.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(filePath))
+	http.ServeFile(ctx.Response, ctx.Request, filePath)
+}
+
+// Redirect 重定向
+func (ctx *Context) Redirect(url string) {
+	http.Redirect(ctx.Response, ctx.Request, url, http.StatusFound)
 }
 
 // Next 中间件向下执行

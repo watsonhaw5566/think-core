@@ -11,10 +11,10 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"time"
 )
 
-const ANY = "ANY"
 const StartText = `
   _______ _     _       _     _____  ____  
  |__   __| |   (_)     | |   / ____|/ __ \ 
@@ -28,16 +28,29 @@ const StartText = `
 // Engine 定义引擎结构体
 type Engine struct {
 	routerGroup
+	pool sync.Pool
 }
 
 // New 初始化tg引擎
 func New() *Engine {
-	return &Engine{
-		routerGroup{
+	engine := &Engine{
+		routerGroup: routerGroup{
 			basePath:           "/",
 			handlerFuncMap:     make(map[string]map[string]HandlerFunc),
 			middlewaresFuncMap: make(map[string]map[string][]MiddlewareFunc),
 		},
+	}
+	engine.pool.New = func() any {
+		return engine.allocateContext()
+	}
+	return engine
+}
+
+func (engine *Engine) allocateContext() any {
+	return &Context{
+		engine:   engine,
+		index:    -1,
+		handlers: make([]HandlerFunc, 0),
 	}
 }
 
@@ -59,36 +72,34 @@ func (group *routerGroup) methodHandler(name string, method string, h HandlerFun
 }
 
 // ServeHTTP
-func (e *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx := &Context{
-		Response: w,
-		Request:  r,
-		index:    -1,
-		handlers: make([]HandlerFunc, 0),
-	}
+func (engine *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := engine.pool.Get().(*Context)
+	ctx.Response = w
+	ctx.Request = r
 	method := r.Method
-	_, ok := e.handlerFuncMap[r.RequestURI]
-	if ok || tgutl.HasSuffix(r.RequestURI) {
-		e.methodHandler(r.RequestURI, method, e.handlerFuncMap[r.RequestURI][method], ctx)
+	_, ok := engine.handlerFuncMap[r.URL.Path][method]
+	if ok || tgutl.HasSuffix(r.URL.Path) {
+		engine.methodHandler(r.URL.Path, method, engine.handlerFuncMap[r.URL.Path][method], ctx)
 	} else {
 		ctx.Fail("路由不存在", FailOptions{
 			StatusCode: http.StatusNotFound,
 			ErrorCode:  http.StatusNotFound,
 		})
 	}
+	engine.pool.Put(ctx)
 }
 
 // Run 独立使用启动, 在调用前自行绑定路由和控制器
-func (e *Engine) Run() {
+func (engine *Engine) Run() {
 	// 全局异常捕获中间件
-	e.Use(RecoveryMiddleware)
+	engine.Use(RecoveryMiddleware)
 	// 静态文件服务
-	e.Use(FileServerMiddleware)
+	engine.Use(FileServerMiddleware)
 
 	// http服务
 	cmd := &http.Server{
 		Addr:    tgcfg.Config.Server.Address,
-		Handler: e,
+		Handler: engine,
 	}
 
 	// 异步启动服务

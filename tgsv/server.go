@@ -8,9 +8,11 @@ import (
 type bindControllerFunc func(*tg.Engine)
 
 // Run 方便think-go框架绑定路由控制器用的启动方法
-func Run(bindController bindControllerFunc) {
+func Run(bindController ...bindControllerFunc) {
 	// 创建TG引擎
 	router := tg.New()
-	bindController(router)
+	for _, controllerFunc := range bindController {
+		controllerFunc(router)
+	}
 	router.Run()
 }
