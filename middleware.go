@@ -1,32 +1,28 @@
 package tg
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/think-go/tg/tgcfg"
 	"github.com/think-go/tg/tglog"
 	"github.com/think-go/tg/tgutl"
 	"net/http"
-	"runtime"
 )
 
-// RecoveryMiddleware 全局异常捕获中间件
-func RecoveryMiddleware() HandlerFunc {
+// recoveryMiddleware 全局异常捕获中间件
+func recoveryMiddleware() HandlerFunc {
 	return func(ctx *Context) {
 		defer func() {
 			if err := recover(); err != nil {
-				// 输出堆栈
-				stack := make([]byte, 1024)
-				length := runtime.Stack(stack, false)
-				stackTrace := string(stack[:length])
-				// 控制台打印堆栈
-				fmt.Println(stackTrace)
-				// 日志记录
-				tglog.Log().Error(err)
-				tglog.Log().Error(stackTrace)
-				// 输出信息
-				ctx.Fail(fmt.Sprintf("%v", err), FailOptions{
-					StatusCode: http.StatusInternalServerError,
-					ErrorCode:  ErrorCode.EXCEPTION,
+				error := err.(*Exception)
+				jsonStr, _ := json.Marshal(error)
+				tglog.Log().Error(string(jsonStr))
+				if error.Error != nil {
+					fmt.Println(error.Error)
+				}
+				ctx.Fail(error.Message, FailOptions{
+					StatusCode: error.StateCode,
+					ErrorCode:  error.ErrorCode,
 				})
 			}
 		}()
@@ -34,8 +30,8 @@ func RecoveryMiddleware() HandlerFunc {
 	}
 }
 
-// FileServerMiddleware 静态资源服务中间件
-func FileServerMiddleware() HandlerFunc {
+// fileServerMiddleware 静态资源服务中间件
+func fileServerMiddleware() HandlerFunc {
 	return func(ctx *Context) {
 		// 如果是静态资源路径，使用文件服务器处理请求
 		if tgutl.HasSuffix(ctx.Request.RequestURI) {

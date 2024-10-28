@@ -92,9 +92,9 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // Run 独立使用启动, 在调用前自行绑定路由和控制器
 func (engine *Engine) Run() {
 	// 全局异常捕获中间件
-	engine.Use(RecoveryMiddleware)
+	engine.Use(recoveryMiddleware)
 	// 静态文件服务
-	engine.Use(FileServerMiddleware)
+	engine.Use(fileServerMiddleware)
 
 	// http服务
 	cmd := &http.Server{

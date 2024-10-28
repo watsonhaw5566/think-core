@@ -5,7 +5,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"github.com/go-playground/validator/v10"
+	"github.com/mitchellh/mapstructure"
 	"github.com/think-go/tg/tgcfg"
 	"github.com/think-go/tg/tglog"
 	"github.com/tidwall/gjson"
@@ -16,8 +16,8 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
+	"reflect"
 	"strings"
-	"time"
 )
 
 // Context 上下文
@@ -26,7 +26,6 @@ type Context struct {
 	Request  *http.Request
 	index    int
 	handlers []HandlerFunc
-	latency  time.Duration
 	engine   *Engine
 }
 
@@ -59,6 +58,14 @@ type SuccessOptions struct {
 type FailOptions struct {
 	StatusCode int `json:"statusCode"`
 	ErrorCode  int `json:"errorCode"`
+}
+
+// Exception 统一异常
+type Exception struct {
+	StateCode int    `json:"stateCode"`
+	ErrorCode int    `json:"errorCode"`
+	Message   string `json:"message"`
+	Error     error  `json:"error"`
 }
 
 // Success 成功输出信息
@@ -191,6 +198,7 @@ func (ctx *Context) FormFile(key string) *multipart.FileHeader {
 	file, header, err := ctx.Request.FormFile(key)
 	if err != nil {
 		tglog.Log().Error(err)
+		return nil
 	}
 	defer file.Close()
 	return header
@@ -216,45 +224,80 @@ func (ctx *Context) FormFiles(key string, defaultFormMaxMemory ...int64) []*mult
 }
 
 // BindStructValidate 结构体参数映射,具有参数验证功能
-func (ctx *Context) BindStructValidate(req any) {
-	decoder := json.NewDecoder(ctx.Request.Body)
-	defer ctx.Request.Body.Close()
-	err := decoder.Decode(req)
-	if err != nil {
-		panic("结构体映射出错")
+func (ctx *Context) BindStructValidate(req any, defaultFormMaxMemory ...int64) {
+	contentType := ctx.Request.Header.Get("Content-Type")
+	if strings.Contains(contentType, "application/json") {
+		body := ctx.Request.Body
+		if body == nil {
+			panic(&Exception{
+				StateCode: http.StatusBadRequest,
+				ErrorCode: ErrorCode.VALIDATE,
+				Message:   "body格式错误",
+			})
+		}
+		decoder := json.NewDecoder(body)
+		defer ctx.Request.Body.Close()
+		err := decoder.Decode(req)
+		if err != nil {
+			panic(&Exception{
+				StateCode: http.StatusBadRequest,
+				ErrorCode: ErrorCode.VALIDATE,
+				Message:   "结构体映射出错",
+				Error:     err,
+			})
+		}
+		// 验证
+		validate(req)
 	}
-	validate := validator.New()
-	err = validate.Struct(req)
-	if err != nil {
-		ctx.Fail(err.Error())
-		return
+	// GET或POST的FormData非json情况
+	switch ctx.Request.Method {
+	case http.MethodGet:
+		params := make(map[string]interface{})
+		for key, values := range ctx.Request.URL.Query() {
+			if len(values) > 0 {
+				params[key] = values[0]
+			}
+		}
+		err := mapstructure.Decode(params, req)
+		if err != nil {
+			panic(&Exception{
+				StateCode: http.StatusBadRequest,
+				ErrorCode: ErrorCode.VALIDATE,
+				Message:   "结构体映射出错",
+				Error:     err,
+			})
+		}
+		// 验证
+		validate(req)
+	case http.MethodPost, http.MethodPut, http.MethodDelete:
+		rv := reflect.ValueOf(req)
+		if rv.Kind() != reflect.Ptr || rv.IsNil() {
+			panic(&Exception{
+				StateCode: http.StatusBadRequest,
+				ErrorCode: ErrorCode.EXCEPTION,
+				Message:   "传入必须是指针",
+			})
+		}
+		// 获取指针指向的元素
+		elem := rv.Elem()
+		// 获取结构体定义
+		st := reflect.TypeOf(req).Elem()
+		for i := 0; i < elem.NumField(); i++ {
+			key := st.Field(i).Tag.Get("p")
+			switch st.Field(i).Type {
+			case reflect.TypeOf(new(multipart.FileHeader)):
+				elem.Field(i).Set(reflect.ValueOf(ctx.FormFile(key)))
+			case reflect.TypeOf([]*multipart.FileHeader{}):
+				elem.Field(i).Set(reflect.ValueOf(ctx.FormFiles(key, defaultFormMaxMemory...)))
+			case reflect.TypeOf(0):
+				elem.Field(i).SetInt(ctx.PostForm(key, defaultFormMaxMemory...).Int())
+			case reflect.TypeOf(""):
+				elem.Field(i).SetString(ctx.PostForm(key, defaultFormMaxMemory...).String())
+			}
+		}
+		// 验证
+		validate(req)
 	}
-	//rv := reflect.ValueOf(req)
-	//if rv.Kind() != reflect.Ptr || rv.IsNil() {
-	//	panic("传入必须是指针")
-	//}
-	//// 获取指针指向的元素
-	//elem := rv.Elem()
-	//if elem.Kind() != reflect.Struct {
-	//	panic("指针必须指向一个结构体")
-	//}
-	//// 获取结构体的类型
-	//typ := elem.Type()
-	//// 遍历映射赋值
-	//for i := 0; i < elem.NumField(); i++ {
-	//	field := typ.Field(i)
-	//	el := elem.Field(i)
-	//	name := field.Tag.Get("p")
-	//	switch ctx.Request.Method {
-	//	case http.MethodGet:
-	//		value := ctx.GetQuery(name)
-	//		el.SetString(value)
-	//	case http.MethodPost, http.MethodPut, http.MethodDelete:
-	//		//return ctx.PostForm(key)
-	//	default:
-	//		//return ctx.PostForm(key)
-	//	}
-	//}
 }
 
 // Stream 流式数据转发
@@ -310,9 +353,7 @@ func (ctx *Context) Redirect(url string) {
 func (ctx *Context) Next() {
 	ctx.index++
 	if ctx.index < len(ctx.handlers) {
-		start := time.Now()
 		ctx.handlers[ctx.index](ctx)
-		ctx.latency = time.Since(start)
 	}
 }
 
@@ -331,9 +372,4 @@ func (ctx *Context) ClientIP() string {
 		return ip
 	}
 	return ""
-}
-
-// Latency 用时
-func (ctx *Context) Latency() time.Duration {
-	return ctx.latency
 }

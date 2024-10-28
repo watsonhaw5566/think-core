@@ -97,7 +97,11 @@ func (group *routerGroup) handler(method string, relativePath string, handlerFun
 	}
 	_, ok = group.handlerFuncMap[mergePath][method]
 	if ok {
-		panic(fmt.Sprintf("路由重复 [%s][%s]", mergePath, method))
+		panic(&Exception{
+			StateCode: http.StatusInternalServerError,
+			ErrorCode: ErrorCode.EXCEPTION,
+			Message:   fmt.Sprintf("路由重复 [%s][%s]", mergePath, method),
+		})
 	}
 	group.handlerFuncMap[mergePath][method] = handlerFunc
 	group.middlewaresFuncMap[mergePath][method] = append(append(group.middlewaresFuncMap[mergePath][method], group.groupMiddlewares...), middlewareFunc...)
