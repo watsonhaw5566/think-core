@@ -5,7 +5,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"github.com/mitchellh/mapstructure"
+	"github.com/go-playground/validator/v10"
 	"github.com/think-go/tg/tgcfg"
 	"github.com/think-go/tg/tglog"
 	"github.com/tidwall/gjson"
@@ -15,9 +15,12 @@ import (
 	"mime/multipart"
 	"net"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
+	"sync"
 )
 
 // Context 上下文
@@ -27,18 +30,24 @@ type Context struct {
 	index    int
 	handlers []HandlerFunc
 	engine   *Engine
+	cache    map[string]any
+	mutex    sync.RWMutex
 }
 
 // errorCode 定义错误码
 type errorCode struct {
-	VALIDATE  int
-	EXCEPTION int
+	VALIDATE    int
+	TokenExpire int
+	EXCEPTION   int
+	MySqlError  int
 }
 
 // ErrorCode 初始化错误码
 var ErrorCode = &errorCode{
-	VALIDATE:  10001, // 验证类错误
-	EXCEPTION: 20001, // 服务或代码异常类错误
+	VALIDATE:    10001, // 验证类错误
+	TokenExpire: 10002, // Token过期
+	EXCEPTION:   20001, // 服务或代码异常类错误
+	MySqlError:  20002, // mysql错误
 }
 
 // result 统一返回结果
@@ -141,6 +150,25 @@ func (ctx *Context) XML(code int, data any) {
 	ctx.Response.Write(xmlData)
 }
 
+// Set 写入缓存信息
+func (ctx *Context) Set(key string, value any) {
+	ctx.mutex.Lock()
+	defer ctx.mutex.Unlock()
+	if ctx.cache == nil {
+		ctx.cache = make(map[string]any)
+	}
+	ctx.cache[key] = value
+	return
+}
+
+// Get 读取缓存信息
+func (ctx *Context) Get(key string) (value any, ok bool) {
+	ctx.mutex.RLock()
+	defer ctx.mutex.RUnlock()
+	value, ok = ctx.cache[key]
+	return
+}
+
 // GetQuery 获取GET请求参数
 func (ctx *Context) GetQuery(key string) string {
 	return ctx.Request.URL.Query().Get(key)
@@ -163,7 +191,7 @@ func (ctx *Context) PostForm(key string, defaultFormMaxMemory ...int64) gjson.Re
 	}
 	if err := ctx.Request.ParseMultipartForm(maxMemory); err != nil {
 		if !errors.Is(err, http.ErrNotMultipart) {
-			tglog.Log().Error("POST获取参数失败")
+			tglog.Log().Error("MultipartForm异常")
 			return gjson.Result{}
 		}
 	}
@@ -171,7 +199,7 @@ func (ctx *Context) PostForm(key string, defaultFormMaxMemory ...int64) gjson.Re
 	if strings.Contains(contentType, "application/json") {
 		body, err := ioutil.ReadAll(ctx.Request.Body)
 		if err != nil {
-			tglog.Log().Error("POST获取参数失败")
+			tglog.Log().Error("Body解析失败")
 			return gjson.Result{}
 		}
 		defer ctx.Request.Body.Close()
@@ -194,7 +222,16 @@ func (ctx *Context) PostDefaultForm(key string, value any) gjson.Result {
 }
 
 // FormFile 获取文件
-func (ctx *Context) FormFile(key string) *multipart.FileHeader {
+func (ctx *Context) FormFile(key string, defaultFormMaxMemory ...int64) *multipart.FileHeader {
+	maxMemory := int64(32) << 20
+	if len(defaultFormMaxMemory) > 0 {
+		maxMemory = defaultFormMaxMemory[0] << 20
+	}
+	if err := ctx.Request.ParseMultipartForm(maxMemory); err != nil {
+		if !errors.Is(err, http.ErrNotMultipart) {
+			tglog.Log().Error("FormFiles获取文件失败")
+		}
+	}
 	file, header, err := ctx.Request.FormFile(key)
 	if err != nil {
 		tglog.Log().Error(err)
@@ -223,80 +260,106 @@ func (ctx *Context) FormFiles(key string, defaultFormMaxMemory ...int64) []*mult
 	return files
 }
 
+func bindParams(ctx *Context, req any, values url.Values) {
+	if ctx.Request.MultipartForm != nil {
+		for key, _ := range ctx.Request.MultipartForm.File {
+			values.Set(key, "")
+		}
+	}
+	reqVal := reflect.ValueOf(req).Elem()
+	reqType := reqVal.Type()
+	for i := 0; i < reqType.NumField(); i++ {
+		name := reqType.Field(i).Tag.Get("p")
+		for key, value := range values {
+			if name == key {
+				fieldName := reqType.Field(i).Name
+				fieldVal := reqVal.FieldByName(fieldName)
+				if fieldVal.CanSet() {
+					switch fieldVal.Type() {
+					case reflect.TypeOf(""):
+						fieldVal.SetString(value[0])
+					case reflect.TypeOf([]string{}):
+						fieldVal.Set(reflect.ValueOf(value))
+					case reflect.TypeOf(0):
+						v, err := strconv.Atoi(value[0])
+						if err != nil {
+							tglog.Log().Error(err)
+						}
+						fieldVal.SetInt(int64(v))
+					case reflect.TypeOf([]int{}):
+						intSlice := make([]int, len(value))
+						for i, s := range value {
+							num, err := strconv.Atoi(s)
+							if err != nil {
+								tglog.Log().Error(err)
+							}
+							intSlice[i] = num
+						}
+						fieldVal.Set(reflect.ValueOf(intSlice))
+					case reflect.TypeOf(new(multipart.FileHeader)):
+						fieldVal.Set(reflect.ValueOf(ctx.FormFile(key)))
+					case reflect.TypeOf([]*multipart.FileHeader{}):
+						fieldVal.Set(reflect.ValueOf(ctx.FormFiles(key)))
+					}
+				}
+			}
+		}
+	}
+
+	if err := validator.New().Struct(req); err != nil {
+		fmt.Println(err)
+	}
+}
+
 // BindStructValidate 结构体参数映射,具有参数验证功能
 func (ctx *Context) BindStructValidate(req any, defaultFormMaxMemory ...int64) {
-	contentType := ctx.Request.Header.Get("Content-Type")
-	if strings.Contains(contentType, "application/json") {
-		body := ctx.Request.Body
-		if body == nil {
-			panic(&Exception{
-				StateCode: http.StatusBadRequest,
-				ErrorCode: ErrorCode.VALIDATE,
-				Message:   "body格式错误",
-			})
-		}
-		decoder := json.NewDecoder(body)
-		defer ctx.Request.Body.Close()
-		err := decoder.Decode(req)
-		if err != nil {
-			panic(&Exception{
-				StateCode: http.StatusBadRequest,
-				ErrorCode: ErrorCode.VALIDATE,
-				Message:   "结构体映射出错",
-				Error:     err,
-			})
-		}
-		// 验证
-		validate(req)
+	maxMemory := int64(32) << 20
+	if len(defaultFormMaxMemory) > 0 {
+		maxMemory = defaultFormMaxMemory[0] << 20
 	}
-	// GET或POST的FormData非json情况
-	switch ctx.Request.Method {
-	case http.MethodGet:
-		params := make(map[string]interface{})
-		for key, values := range ctx.Request.URL.Query() {
-			if len(values) > 0 {
-				params[key] = values[0]
-			}
-		}
-		err := mapstructure.Decode(params, req)
+
+	if ctx.Request.Method == http.MethodGet {
+		bindParams(ctx, req, ctx.Request.URL.Query())
+	}
+
+	contentType := ctx.Request.Header.Get("Content-Type")
+	switch {
+	case strings.Contains(contentType, "application/json"):
+		body, err := ioutil.ReadAll(ctx.Request.Body)
 		if err != nil {
-			panic(&Exception{
-				StateCode: http.StatusBadRequest,
-				ErrorCode: ErrorCode.VALIDATE,
-				Message:   "结构体映射出错",
+			panic(Exception{
+				StateCode: http.StatusInternalServerError,
+				ErrorCode: ErrorCode.EXCEPTION,
+				Message:   "body解析失败",
 				Error:     err,
 			})
 		}
-		// 验证
-		validate(req)
-	case http.MethodPost, http.MethodPut, http.MethodDelete:
-		rv := reflect.ValueOf(req)
-		if rv.Kind() != reflect.Ptr || rv.IsNil() {
-			panic(&Exception{
-				StateCode: http.StatusBadRequest,
+		if err = json.Unmarshal(body, req); err != nil {
+			panic(Exception{
+				StateCode: http.StatusInternalServerError,
 				ErrorCode: ErrorCode.EXCEPTION,
-				Message:   "传入必须是指针",
+				Message:   "body映射失败",
+				Error:     err,
 			})
 		}
-		// 获取指针指向的元素
-		elem := rv.Elem()
-		// 获取结构体定义
-		st := reflect.TypeOf(req).Elem()
-		for i := 0; i < elem.NumField(); i++ {
-			key := st.Field(i).Tag.Get("p")
-			switch st.Field(i).Type {
-			case reflect.TypeOf(new(multipart.FileHeader)):
-				elem.Field(i).Set(reflect.ValueOf(ctx.FormFile(key)))
-			case reflect.TypeOf([]*multipart.FileHeader{}):
-				elem.Field(i).Set(reflect.ValueOf(ctx.FormFiles(key, defaultFormMaxMemory...)))
-			case reflect.TypeOf(0):
-				elem.Field(i).SetInt(ctx.PostForm(key, defaultFormMaxMemory...).Int())
-			case reflect.TypeOf(""):
-				elem.Field(i).SetString(ctx.PostForm(key, defaultFormMaxMemory...).String())
+		defer ctx.Request.Body.Close()
+		if err = validator.New().Struct(req); err != nil {
+			fmt.Println(err)
+		}
+	case strings.Contains(contentType, "application/x-www-form-urlencoded"):
+		bindParams(ctx, req, ctx.Request.PostForm)
+	case strings.Contains(contentType, "multipart/form-data"):
+		if err := ctx.Request.ParseMultipartForm(maxMemory); err != nil {
+			if !errors.Is(err, http.ErrNotMultipart) {
+				panic(Exception{
+					StateCode: http.StatusInternalServerError,
+					ErrorCode: ErrorCode.EXCEPTION,
+					Message:   "MultipartForm异常",
+					Error:     err,
+				})
 			}
 		}
-		// 验证
-		validate(req)
+		bindParams(ctx, req, ctx.Request.PostForm)
 	}
 }
 

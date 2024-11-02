@@ -43,19 +43,28 @@ func logFile() *logrus.Logger {
 		logToFile = logrus.New()
 		logToFile.SetLevel(logrus.DebugLevel)
 		logToFile.Out = io.Discard
+
 		logWriter, _ := logs.New(
 			loggerFile+"_%Y%m%d.log",
 			logs.WithMaxAge(time.Duration(tgcfg.Config.Log.MaxAge)*24*time.Hour),
 			logs.WithRotationTime(24*time.Hour),
 		)
+
+		errorLogWriter, _ := logs.New(
+			loggerFile+"_error_%Y%m%d.log",
+			logs.WithMaxAge(time.Duration(tgcfg.Config.Log.MaxAge)*24*time.Hour),
+			logs.WithRotationTime(24*time.Hour),
+		)
+
 		writeMap := lfshook.WriterMap{
 			logrus.InfoLevel:  logWriter,
 			logrus.FatalLevel: logWriter,
 			logrus.DebugLevel: logWriter,
 			logrus.WarnLevel:  logWriter,
-			logrus.ErrorLevel: logWriter,
+			logrus.ErrorLevel: errorLogWriter,
 			logrus.PanicLevel: logWriter,
 		}
+
 		lfHook := lfshook.NewHook(writeMap, &logrus.JSONFormatter{
 			TimestampFormat: "2006-01-02 15:04:05",
 		})
