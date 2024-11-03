@@ -14,17 +14,16 @@ func recoveryMiddleware() HandlerFunc {
 	return func(ctx *Context) {
 		defer func() {
 			if err := recover(); err != nil {
-				fmt.Println(err)
-				e := err.(Exception)
-				jsonStr, _ := json.Marshal(e)
-				tglog.Log().Error(string(jsonStr))
-				if e.Error != nil {
-					fmt.Println(e.Error)
+				if e, ok := err.(Exception); ok {
+					jsonStr, _ := json.Marshal(e)
+					tglog.Log().Error(string(jsonStr))
+					ctx.Fail(e.Message, FailOptions{
+						StatusCode: e.StateCode,
+						ErrorCode:  e.ErrorCode,
+					})
+				} else {
+					fmt.Println(err)
 				}
-				ctx.Fail(e.Message, FailOptions{
-					StatusCode: e.StateCode,
-					ErrorCode:  e.ErrorCode,
-				})
 			}
 		}()
 		ctx.Next()

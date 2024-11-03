@@ -122,7 +122,7 @@ func (engine *Engine) Run() {
 				fmt.Print(strings.TrimPrefix(StartText, "\n"))
 				color.Green("[ThinkGO]服务启动成功")
 				color.Blue(fmt.Sprintf("[ThinkGO]服务地址: http://127.0.0.1%s", tgcfg.Config.Server.Address))
-				color.Blue(fmt.Sprintf("[ThinkGO]文档地址: http://127.0.0.1%s/api.json", tgcfg.Config.Server.Address))
+				color.Blue(fmt.Sprintf("[ThinkGO]接口文档地址: http://127.0.0.1%s/api.json", tgcfg.Config.Server.Address))
 				done <- true
 				break
 			}

@@ -32,20 +32,13 @@ type tdb struct {
 	tx        *sqlx.Tx
 }
 
-func (db *tdb) Begin() *tdb {
-	n := *db
-	if instance, ok := dbInstance.Load(n.link); ok {
-		tx, err := instance.(*sqlx.DB).Beginx()
-		if err != nil {
-			n.tx = tx
-		}
-	}
-	return &n
+type begin struct {
+	tx     *sqlx.Tx
+	source []Source
 }
 
-// Db 如果不传数据源默认走的是配置文件里默认的,传了可以指定任意的数据源
-func Db(tableName string, source ...Source) (db *tdb) {
-	config := Source{
+func createInstance(source ...Source) *Source {
+	config := &Source{
 		Link:        tgcfg.Config.GetMySqlSource("default.link").String(),
 		MaxOpen:     int(tgcfg.Config.GetMySqlSource("default.maxOpen").Int()),
 		MaxIdle:     int(tgcfg.Config.GetMySqlSource("default.maxIdle").Int()),
@@ -53,7 +46,7 @@ func Db(tableName string, source ...Source) (db *tdb) {
 		MaxLifeTime: int(tgcfg.Config.GetMySqlSource("default.maxLifeTime").Int()),
 	}
 	if len(source) > 0 {
-		config = Source{
+		config = &Source{
 			Link:        source[0].Link,
 			MaxOpen:     source[0].MaxOpen,
 			MaxIdle:     source[0].MaxIdle,
@@ -61,14 +54,8 @@ func Db(tableName string, source ...Source) (db *tdb) {
 			MaxLifeTime: source[0].MaxLifeTime,
 		}
 	}
-	db = &tdb{
-		link:      config.Link,
-		tableName: tableName,
-		whereStr:  "",
-		fieldStr:  "*",
-	}
 	if _, ok := dbInstance.Load(config.Link); ok {
-		return
+		return config
 	}
 	instance, err := sqlx.Connect("mysql", config.Link)
 	if err != nil {
@@ -84,7 +71,52 @@ func Db(tableName string, source ...Source) (db *tdb) {
 	instance.SetConnMaxIdleTime(time.Duration(config.MaxIdleTime) * time.Second)
 	instance.SetConnMaxLifetime(time.Duration(config.MaxLifeTime) * time.Second)
 	dbInstance.Store(config.Link, instance)
-	return
+	return config
+}
+
+func Begin(source ...Source) *begin {
+	config := createInstance(source...)
+	var t *sqlx.Tx
+	if instance, ok := dbInstance.Load(config.Link); ok {
+		tx, err := instance.(*sqlx.DB).Beginx()
+		if err != nil {
+			t = tx
+		} else {
+			panic(Exception{
+				StateCode: http.StatusInternalServerError,
+				ErrorCode: ErrorCode.EXCEPTION,
+				Message:   "执行Begin出错",
+				Error:     err,
+			})
+		}
+	}
+	return &begin{
+		tx:     t,
+		source: source,
+	}
+}
+
+func (b *begin) Db(tableName string) *tdb {
+	return Db(tableName, b.source...)
+}
+
+func (b *begin) Commit() error {
+	return b.tx.Commit()
+}
+
+func (b *begin) Rollback() error {
+	return b.tx.Rollback()
+}
+
+// Db 如果不传数据源默认走的是配置文件里默认的,传了可以指定任意的数据源
+func Db(tableName string, source ...Source) (db *tdb) {
+	config := createInstance(source...)
+	return &tdb{
+		link:      config.Link,
+		tableName: tableName,
+		whereStr:  "",
+		fieldStr:  "*",
+	}
 }
 
 func (db *tdb) Field(fields string, distinct ...bool) *tdb {
@@ -174,7 +206,3 @@ func (db *tdb) Select(scan any) error {
 	}
 	return nil
 }
-
-func (db *tdb) Commit() {}
-
-func (db *tdb) Rollback() {}

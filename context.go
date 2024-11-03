@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"github.com/go-playground/validator/v10"
 	"github.com/think-go/tg/tgcfg"
 	"github.com/think-go/tg/tglog"
 	"github.com/tidwall/gjson"
@@ -305,10 +304,7 @@ func bindParams(ctx *Context, req any, values url.Values) {
 			}
 		}
 	}
-
-	if err := validator.New().Struct(req); err != nil {
-		fmt.Println(err)
-	}
+	CheckParams(req)
 }
 
 // BindStructValidate 结构体参数映射,具有参数验证功能
@@ -320,6 +316,7 @@ func (ctx *Context) BindStructValidate(req any, defaultFormMaxMemory ...int64) {
 
 	if ctx.Request.Method == http.MethodGet {
 		bindParams(ctx, req, ctx.Request.URL.Query())
+		return
 	}
 
 	contentType := ctx.Request.Header.Get("Content-Type")
@@ -343,9 +340,7 @@ func (ctx *Context) BindStructValidate(req any, defaultFormMaxMemory ...int64) {
 			})
 		}
 		defer ctx.Request.Body.Close()
-		if err = validator.New().Struct(req); err != nil {
-			fmt.Println(err)
-		}
+		CheckParams(req)
 	case strings.Contains(contentType, "application/x-www-form-urlencoded"):
 		bindParams(ctx, req, ctx.Request.PostForm)
 	case strings.Contains(contentType, "multipart/form-data"):
@@ -360,6 +355,8 @@ func (ctx *Context) BindStructValidate(req any, defaultFormMaxMemory ...int64) {
 			}
 		}
 		bindParams(ctx, req, ctx.Request.PostForm)
+	default:
+		CheckParams(req)
 	}
 }
 
