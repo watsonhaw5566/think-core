@@ -82,9 +82,9 @@ func (group *routerGroup) ALL(relativePath string, handlerFunc HandlerFunc, midd
 
 // Bind 绑定控制器,可以用api结构体的方式定义路由
 func (group *routerGroup) Bind() {
-	// req := new(api.SayHelloReq)
-	// ctx.BindStructValidate(req)
-	// 这功能实际就是省了这两行代码,有空再写吧
+	// var req api.SayHelloReq
+	// ctx.BindStructValidate(&req)
+	// 这功能实际就是省了这两行代码,多加一个参数,有空再写吧
 }
 
 // handler http绑定的函数
