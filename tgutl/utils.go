@@ -142,3 +142,27 @@ func StringInSlice(a string, list []string) bool {
 	}
 	return false
 }
+
+// SqlFormat 字符串sql语句格式化
+func SqlFormat(sql string, value []interface{}) string {
+	for _, v := range value {
+		var strValue string
+		switch val := v.(type) {
+		case string:
+			if val == "NULL" {
+				strValue = val
+			} else {
+				strValue = fmt.Sprintf("'%s'", val)
+			}
+		default:
+			strValue = fmt.Sprintf("%v", val)
+		}
+		sql = strings.Replace(sql, "?", strValue, 1)
+	}
+	return sql
+}
+
+// PtrBool 得到对应的指针
+func PtrBool(b bool) *bool {
+	return &b
+}

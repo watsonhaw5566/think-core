@@ -1,10 +1,13 @@
 package tg
 
 import (
+	"errors"
 	"fmt"
+	"github.com/fatih/color"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/think-go/tg/tgcfg"
+	"github.com/think-go/tg/tgutl"
 	"net/http"
 	"reflect"
 	"strings"
@@ -18,18 +21,57 @@ var (
 
 type Source struct {
 	Link        string
-	Debug       bool
-	MaxOpen     int // 最大打开连接数
-	MaxIdle     int // 最大空闲连接数
-	MaxIdleTime int // 连接在空闲状态下的最大存活时间
-	MaxLifeTime int // 连接的最大生命周期，从创建到被关闭的总时间
+	Debug       bool   // 是否开启全局SQL打印
+	CreateTime  string // 建时间字段名
+	UpdateTime  string // 更新时间字段名
+	DeleteTime  string // 删除时间字段名
+	MaxOpen     int    // 最大打开连接数
+	MaxIdle     int    // 最大空闲连接数
+	MaxIdleTime int    // 连接在空闲状态下的最大存活时间
+	MaxLifeTime int    // 连接的最大生命周期，从创建到被关闭的总时间
+}
+
+type UpdateOption struct {
+	Debug      *bool  // 是否打印最终执行的SQL语句，默认不打印
+	AutoTime   *bool  // 是否开启自动时间戳，默认不开启
+	UpdateTime string // 更新时间字段名，默认 update_time
+	AllProtect *bool  // 全量更新保护，默认开启，防止忘记写WHERE条件误更新所有数据
+}
+
+type DecrOption struct {
+	Debug      *bool  // 是否打印最终执行的SQL语句，默认不打印
+	AutoTime   *bool  // 是否开启自动时间戳，默认不开启
+	UpdateTime string // 更新时间字段名，默认 update_time
+	AllProtect *bool  // 全量更新保护，默认开启，防止忘记写WHERE条件误更新所有数据
+}
+
+type IncrOption struct {
+	Debug      *bool  // 是否打印最终执行的SQL语句，默认不打印
+	AutoTime   *bool  // 是否开启自动时间戳，默认不开启
+	UpdateTime string // 更新时间字段名，默认 update_time
+	AllProtect *bool  // 全量更新保护，默认开启，防止忘记写WHERE条件误更新所有数据
 }
 
 type DeleteOption struct {
-	IsDeleteFlag  bool   // 是否是软删除，默认是
-	Debug         bool   // 是否打印最终执行的SQL语句，默认不打印
+	IsDeleteFlag  *bool  // 是否是软删除，默认是
+	Debug         *bool  // 是否打印最终执行的SQL语句，默认不打印
 	DeleteTime    string // 删除时间字段名，默认 delete_time
-	DeleteProtect bool   // 删除保护，默认开启，防止忘记写WHERE条件误删除所有数据，只争对物理删除有效
+	DeleteProtect *bool  // 删除保护，默认开启，防止忘记写WHERE条件误删除所有数据，只争对物理删除有效
+}
+
+type CountOption struct {
+	Debug      *bool  // 是否打印sql默认不打印
+	DeleteTime string // 软删除字段名
+}
+
+type FindOneOption struct {
+	Debug      *bool  // 是否打印sql默认不打印
+	DeleteTime string // 软删除字段名
+}
+
+type SelectOption struct {
+	Debug      *bool  // 是否打印sql默认不打印
+	DeleteTime string // 软删除字段名
 }
 
 type tdb struct {
@@ -40,13 +82,12 @@ type tdb struct {
 	lockStr   string
 	values    []interface{}
 	tx        *sqlx.Tx
-	debug     bool
+	config    Source
 }
 
 type begin struct {
 	tx     *sqlx.Tx
 	source []Source
-	debug  bool
 }
 
 // 创建连接池
@@ -54,6 +95,9 @@ func createInstance(source ...Source) (instance *sqlx.DB, config Source) {
 	config = Source{
 		Link:        tgcfg.Config.GetMySqlSource("default.link").String(),
 		Debug:       tgcfg.Config.GetMySqlSource("default.debug").Bool(),
+		CreateTime:  tgcfg.Config.GetMySqlSource("default.createTime").String(),
+		UpdateTime:  tgcfg.Config.GetMySqlSource("default.updateTime").String(),
+		DeleteTime:  tgcfg.Config.GetMySqlSource("default.deleteTime").String(),
 		MaxOpen:     int(tgcfg.Config.GetMySqlSource("default.maxOpen").Int()),
 		MaxIdle:     int(tgcfg.Config.GetMySqlSource("default.maxIdle").Int()),
 		MaxIdleTime: int(tgcfg.Config.GetMySqlSource("default.maxIdleTime").Int()),
@@ -63,6 +107,9 @@ func createInstance(source ...Source) (instance *sqlx.DB, config Source) {
 		config = Source{
 			Link:        source[0].Link,
 			Debug:       source[0].Debug,
+			CreateTime:  source[0].CreateTime,
+			UpdateTime:  source[0].UpdateTime,
+			DeleteTime:  source[0].DeleteTime,
 			MaxOpen:     source[0].MaxOpen,
 			MaxIdle:     source[0].MaxIdle,
 			MaxIdleTime: source[0].MaxIdleTime,
@@ -92,7 +139,7 @@ func createInstance(source ...Source) (instance *sqlx.DB, config Source) {
 
 // BeginTransaction 开启事务,如果不传数据源默认走的是配置文件里默认的,传了可以指定任意的数据源
 func BeginTransaction(source ...Source) *begin {
-	instance, config := createInstance(source...)
+	instance, _ := createInstance(source...)
 	tx, err := instance.Beginx()
 	if err != nil {
 		panic(Exception{
@@ -105,7 +152,6 @@ func BeginTransaction(source ...Source) *begin {
 	return &begin{
 		tx:     tx,
 		source: source,
-		debug:  config.Debug,
 	}
 }
 
@@ -113,7 +159,6 @@ func BeginTransaction(source ...Source) *begin {
 func (b *begin) Db(tableName string) *tdb {
 	db := Db(tableName, b.source...)
 	db.tx = b.tx
-	db.debug = b.debug
 	return db
 }
 
@@ -135,7 +180,7 @@ func Db(tableName string, source ...Source) (db *tdb) {
 		tableName: tableName,
 		whereStr:  "",
 		fieldStr:  "*",
-		debug:     config.Debug,
+		config:    config,
 	}
 }
 
@@ -176,12 +221,8 @@ func (db *tdb) WhereIn(field string, value []interface{}) *tdb {
 	if strings.Contains(db.whereStr, "WHERE") {
 		str = " AND"
 	}
-	placeholders := make([]string, len(value))
-	for i := range value {
-		placeholders[i] = "?"
-	}
-	inClause := strings.Join(placeholders, ", ")
-	db.whereStr += fmt.Sprintf("%s %s IN (%s)", str, field, inClause)
+	in, _, _ := sqlx.In("IN (?)", value)
+	db.whereStr += fmt.Sprintf("%s %s %s", str, field, in)
 	db.values = append(db.values, value...)
 	return db
 }
@@ -283,44 +324,299 @@ func (db *tdb) Lock(lockStr ...string) *tdb {
 //	defer stmt.Close()
 //}
 
-// Update 更新数据, tg.Db("user").Where("id", "=", 1).Update()
-func (db *tdb) Update() {
-	sql := fmt.Sprintf("UPDATE %s SET %s", db.tableName, db.whereStr)
-	fmt.Println(sql)
-}
-
-// Decr 以某个字段递减
-func (db *tdb) Decr() {}
-
-// Incr 以某个字段递增
-func (db *tdb) Incr() {}
-
-// Delete 删除数据
-func (db *tdb) Delete(option ...DeleteOption) error {
-	config := DeleteOption{
-		IsDeleteFlag:  true,
-		Debug:         false,
-		DeleteTime:    "delete_time",
-		DeleteProtect: true,
+// Update 更新数据, tg.Db("user").Where("id", "=", 1).Update(user)
+func (db *tdb) Update(scan any, option ...UpdateOption) (err error) {
+	config := UpdateOption{
+		Debug:      &db.config.Debug,     // 是否打印最终执行的SQL语句，默认不打印
+		AutoTime:   tgutl.PtrBool(false), // 是否开启自动时间戳，默认不开启
+		UpdateTime: db.config.UpdateTime, // 更新时间字段名，默认 update_time
+		AllProtect: tgutl.PtrBool(true),  // 全量更新保护，默认开启，防止忘记写WHERE条件误更新所有数据
 	}
 	if len(option) > 0 {
-		config = DeleteOption{
-			IsDeleteFlag:  option[0].IsDeleteFlag,
-			Debug:         option[0].Debug,
-			DeleteTime:    option[0].DeleteTime,
-			DeleteProtect: option[0].DeleteProtect,
+		if option[0].Debug != nil {
+			config.Debug = option[0].Debug
+		}
+		if option[0].AutoTime != nil {
+			config.AutoTime = option[0].AutoTime
+		}
+		updateTime := option[0].UpdateTime
+		if updateTime == "" {
+			updateTime = db.config.UpdateTime
+		}
+		if option[0].AllProtect != nil {
+			config.AllProtect = option[0].AllProtect
 		}
 	}
-	if config.IsDeleteFlag {
-		//
-	} else {
 
+	setStr := ""
+	switch v := scan.(type) {
+	case map[string]interface{}:
+		for key, value := range v {
+			if setStr != "" {
+				setStr += ", "
+			}
+			setStr += fmt.Sprintf("%s = ?", key)
+			db.values = append([]interface{}{value}, db.values...)
+		}
+	case struct{}:
+		elem := reflect.ValueOf(scan).Elem()
+		for i := 0; i < elem.NumField(); i++ {
+			field := elem.Type().Field(i)
+			if setStr != "" {
+				setStr += ", "
+			}
+			setStr += fmt.Sprintf("%s = ?", field.Tag.Get("p"))
+			db.values = append([]interface{}{elem.Field(i).Interface()}, db.values...)
+		}
+	}
+
+	if *config.AutoTime {
+		if strings.Contains(setStr, config.UpdateTime) {
+			setStr = strings.Replace(setStr, fmt.Sprintf("%s = ?", config.UpdateTime), fmt.Sprintf("%s = NOW()", config.UpdateTime), 1)
+		} else {
+			setStr += fmt.Sprintf("%s = NOW()", config.UpdateTime)
+		}
+	}
+
+	if *config.AllProtect && !strings.Contains(db.whereStr, "WHERE") {
+		warn := "警告：是否忘记增加WHERE条件，如果需要全量更新，请关闭全量更新保护"
+		color.Yellow(warn)
+		return errors.New(warn)
+	}
+
+	sql := fmt.Sprintf("UPDATE %s SET %s %s %s", db.tableName, setStr, db.whereStr, db.lockStr)
+
+	var stmt *sqlx.Stmt
+	if db.tx != nil {
+		stmt, err = db.tx.Preparex(sql)
+	} else {
+		stmt, err = db.instance.Preparex(sql)
+	}
+	if err != nil {
+		return
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(db.values...)
+	if err != nil {
+		return
+	}
+
+	// DEBUG sql语句打印
+	if *config.Debug {
+		fmt.Println("[SQL] " + tgutl.SqlFormat(sql, db.values))
+	}
+
+	return nil
+}
+
+// Decr 以某个字段递减, tg.Db("user").Where("id", "=", 1).Decr("score", 1)
+func (db *tdb) Decr(field string, num int, option ...DecrOption) (err error) {
+	config := DecrOption{
+		Debug:      &db.config.Debug,     // 是否打印最终执行的SQL语句，默认不打印
+		AutoTime:   tgutl.PtrBool(false), // 是否开启自动时间戳，默认不开启
+		UpdateTime: db.config.UpdateTime, // 更新时间字段名，默认 update_time
+		AllProtect: tgutl.PtrBool(true),  // 全量更新保护，默认开启，防止忘记写WHERE条件误更新所有数据
+	}
+	if len(option) > 0 {
+		if option[0].Debug != nil {
+			config.Debug = option[0].Debug
+		}
+		if option[0].AutoTime != nil {
+			config.AutoTime = option[0].AutoTime
+		}
+		updateTime := option[0].UpdateTime
+		if updateTime == "" {
+			updateTime = db.config.UpdateTime
+		}
+		if option[0].AllProtect != nil {
+			config.AllProtect = option[0].AllProtect
+		}
+	}
+
+	setStr := fmt.Sprintf("%s = %s - ?", field, field)
+	if *config.AutoTime {
+		setStr += fmt.Sprintf(", %s = NOW()", config.UpdateTime)
+	}
+
+	sql := fmt.Sprintf("UPDATE %s SET %s %s %s", db.tableName, setStr, db.whereStr, db.lockStr)
+	db.values = append([]interface{}{num}, db.values...)
+
+	if *config.AllProtect && !strings.Contains(db.whereStr, "WHERE") {
+		warn := "警告：是否忘记增加WHERE条件，如果需要全量更新，请关闭全量更新保护"
+		color.Yellow(warn)
+		return errors.New(warn)
+	}
+
+	var stmt *sqlx.Stmt
+	if db.tx != nil {
+		stmt, err = db.tx.Preparex(sql)
+	} else {
+		stmt, err = db.instance.Preparex(sql)
+	}
+	if err != nil {
+		return
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(db.values...)
+	if err != nil {
+		return
+	}
+
+	// DEBUG sql语句打印
+	if *config.Debug {
+		fmt.Println("[SQL] " + tgutl.SqlFormat(sql, db.values))
 	}
 	return nil
 }
 
+// Incr 以某个字段递增, tg.Db("user").Where("id", "=", 1).Incr("score", 1)
+func (db *tdb) Incr(field string, num int, option ...IncrOption) (err error) {
+	config := DecrOption{
+		Debug:      &db.config.Debug,     // 是否打印最终执行的SQL语句，默认不打印
+		AutoTime:   tgutl.PtrBool(false), // 是否开启自动时间戳，默认不开启
+		UpdateTime: db.config.UpdateTime, // 更新时间字段名，默认 update_time
+		AllProtect: tgutl.PtrBool(true),  // 全量更新保护，默认开启，防止忘记写WHERE条件误更新所有数据
+	}
+	if len(option) > 0 {
+		if option[0].Debug != nil {
+			config.Debug = option[0].Debug
+		}
+		if option[0].AutoTime != nil {
+			config.AutoTime = option[0].AutoTime
+		}
+		updateTime := option[0].UpdateTime
+		if updateTime == "" {
+			updateTime = db.config.UpdateTime
+		}
+		if option[0].AllProtect != nil {
+			config.AllProtect = option[0].AllProtect
+		}
+	}
+
+	setStr := fmt.Sprintf("%s = %s + ?", field, field)
+	if *config.AutoTime {
+		setStr += fmt.Sprintf(", %s = NOW()", config.UpdateTime)
+	}
+
+	sql := fmt.Sprintf("UPDATE %s SET %s %s %s", db.tableName, setStr, db.whereStr, db.lockStr)
+	db.values = append([]interface{}{num}, db.values...)
+
+	if *config.AllProtect && !strings.Contains(db.whereStr, "WHERE") {
+		warn := "警告：是否忘记增加WHERE条件，如果需要全量更新，请关闭全量更新保护"
+		color.Yellow(warn)
+		return errors.New(warn)
+	}
+
+	var stmt *sqlx.Stmt
+	if db.tx != nil {
+		stmt, err = db.tx.Preparex(sql)
+	} else {
+		stmt, err = db.instance.Preparex(sql)
+	}
+	if err != nil {
+		return
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(db.values...)
+	if err != nil {
+		return
+	}
+
+	// DEBUG sql语句打印
+	if *config.Debug {
+		fmt.Println("[SQL] " + tgutl.SqlFormat(sql, db.values))
+	}
+	return nil
+}
+
+// Delete 删除数据
+func (db *tdb) Delete(option ...DeleteOption) (err error) {
+	config := DeleteOption{
+		IsDeleteFlag:  tgutl.PtrBool(true),  // 是否是软删除，默认是
+		Debug:         &db.config.Debug,     // 是否打印最终执行的SQL语句，默认不打印
+		DeleteTime:    db.config.DeleteTime, // 删除时间字段名，默认 delete_time
+		DeleteProtect: tgutl.PtrBool(true),  // 删除保护，默认开启，防止忘记写WHERE条件误删除所有数据，只争对物理删除有效
+	}
+	if len(option) > 0 {
+		if option[0].IsDeleteFlag != nil {
+			config.IsDeleteFlag = option[0].IsDeleteFlag
+		}
+		if option[0].Debug != nil {
+			config.Debug = option[0].Debug
+		}
+		deleteTime := option[0].DeleteTime
+		if deleteTime == "" {
+			deleteTime = db.config.DeleteTime
+		}
+		if option[0].DeleteProtect != nil {
+			config.DeleteProtect = option[0].DeleteProtect
+		}
+	}
+
+	sql := ""
+	warn := "警告：是否忘记增加WHERE条件，如果需要删除全部，请关闭删除保护"
+	var stmt *sqlx.Stmt
+	if *config.IsDeleteFlag {
+		sql = fmt.Sprintf("UPDATE %s SET %s = NOW() %s %s", db.tableName, config.DeleteTime, db.whereStr, db.lockStr)
+		if *config.DeleteProtect && !strings.Contains(db.whereStr, "WHERE") {
+			color.Yellow(warn)
+			return errors.New(warn)
+		}
+	} else {
+		sql = fmt.Sprintf("DELETE FROM %s %s %s", db.tableName, db.whereStr, db.lockStr)
+		if *config.DeleteProtect && !strings.Contains(db.whereStr, "WHERE") {
+			color.Yellow(warn)
+			return errors.New(warn)
+		}
+	}
+
+	if db.tx != nil {
+		stmt, err = db.tx.Preparex(sql)
+	} else {
+		stmt, err = db.instance.Preparex(sql)
+	}
+	if err != nil {
+		return
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(db.values...)
+	if err != nil {
+		return
+	}
+
+	// DEBUG sql语句打印
+	if *config.Debug {
+		fmt.Println("[SQL] " + tgutl.SqlFormat(sql, db.values))
+	}
+	return nil
+}
+
+// ALL 查询包含软删除的数据, tg.Db("user").ALL().Select(&user)
+func (db *tdb) ALL(deleteTime ...string) *tdb {
+	delTime := db.config.DeleteTime
+	if len(deleteTime) > 0 {
+		delTime = deleteTime[0]
+	}
+	db.whereStr = strings.Replace(db.whereStr, fmt.Sprintf("%s IS NULL", delTime), "", 1)
+	return db
+}
+
 // Count 查询数量, tg.Db("user").Count()
-func (db *tdb) Count() (count int, err error) {
+func (db *tdb) Count(option ...CountOption) (count int, err error) {
+	config := CountOption{
+		Debug:      &db.config.Debug,
+		DeleteTime: db.config.DeleteTime,
+	}
+	if len(option) > 0 {
+		if option[0].Debug != nil {
+			config.Debug = option[0].Debug
+		}
+		deleteTime := option[0].DeleteTime
+		if deleteTime == "" {
+			deleteTime = config.DeleteTime
+		}
+	}
+	db.WhereIsNull(config.DeleteTime)
 	sql := fmt.Sprintf("SELECT COUNT(*) FROM %s %s %s", db.tableName, db.whereStr, db.lockStr)
 	var stmt *sqlx.Stmt
 	if db.tx != nil {
@@ -337,14 +633,32 @@ func (db *tdb) Count() (count int, err error) {
 	if err != nil {
 		return
 	}
+
+	// DEBUG sql语句打印
+	if *config.Debug {
+		fmt.Println("[SQL] " + tgutl.SqlFormat(sql, db.values))
+	}
 	return
 }
 
 // FindOne 查询一条数据, tg.Db("user").Where("age", ">", 18).FindOne(&user)
-func (db *tdb) FindOne(scan any) error {
+func (db *tdb) FindOne(scan any, option ...FindOneOption) (err error) {
+	config := FindOneOption{
+		Debug:      &db.config.Debug,
+		DeleteTime: db.config.DeleteTime,
+	}
+	if len(option) > 0 {
+		if option[0].Debug != nil {
+			config.Debug = option[0].Debug
+		}
+		deleteTime := option[0].DeleteTime
+		if deleteTime == "" {
+			deleteTime = config.DeleteTime
+		}
+	}
+	db.WhereIsNull(config.DeleteTime)
 	sql := fmt.Sprintf("SELECT %s FROM %s %s %s", db.fieldStr, db.tableName, db.whereStr, db.lockStr)
 	var stmt *sqlx.Stmt
-	var err error
 	if db.tx != nil {
 		stmt, err = db.tx.Preparex(sql)
 	} else {
@@ -369,15 +683,32 @@ func (db *tdb) FindOne(scan any) error {
 	if err != nil {
 		return err
 	}
+
+	// DEBUG sql语句打印
+	if *config.Debug {
+		fmt.Println("[SQL] " + tgutl.SqlFormat(sql, db.values))
+	}
 	return nil
 }
 
 // Select 查询多条数据, tg.Db("user").Where("age", ">", 18).Select(&user)
-// 是否打印sql默认不打印
-func (db *tdb) Select(scan any, debug ...bool) error {
+func (db *tdb) Select(scan any, option ...SelectOption) (err error) {
+	config := SelectOption{
+		Debug:      &db.config.Debug,
+		DeleteTime: db.config.DeleteTime,
+	}
+	if len(option) > 0 {
+		if option[0].Debug != nil {
+			config.Debug = option[0].Debug
+		}
+		deleteTime := option[0].DeleteTime
+		if deleteTime == "" {
+			deleteTime = config.DeleteTime
+		}
+	}
+	db.WhereIsNull(config.DeleteTime)
 	sql := fmt.Sprintf("SELECT %s FROM %s %s %s", db.fieldStr, db.tableName, db.whereStr, db.lockStr)
 	var stmt *sqlx.Stmt
-	var err error
 	if db.tx != nil {
 		stmt, err = db.tx.Preparex(sql)
 	} else {
@@ -403,14 +734,15 @@ func (db *tdb) Select(scan any, debug ...bool) error {
 		return err
 	}
 
-	isShowSql := false
-	if len(debug) > 0 {
-		isShowSql = debug[0]
-	}
-	if db.debug {
-		fmt.Println()
-	} else if isShowSql {
-		fmt.Println()
+	// DEBUG sql语句打印
+	if *config.Debug {
+		fmt.Println("[SQL] " + tgutl.SqlFormat(sql, db.values))
 	}
 	return nil
+}
+
+// ExecSql 自定义书写sql语句
+func ExecSql(source ...Source) *sqlx.DB {
+	instance, _ := createInstance(source...)
+	return instance
 }
