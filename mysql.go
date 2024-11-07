@@ -31,6 +31,20 @@ type Source struct {
 	MaxLifeTime int    // 连接的最大生命周期，从创建到被关闭的总时间
 }
 
+type InsertOption struct {
+	Debug      *bool  // 是否打印最终执行的SQL语句，默认不打印
+	AutoTime   *bool  // 是否开启自动时间戳，默认不开启
+	CreateTime string // 创建时间字段名，默认 create_time
+	UpdateTime string // 更新时间字段名，默认 update_time
+}
+
+type InsertAllOption struct {
+	Debug      *bool  // 是否打印最终执行的SQL语句，默认不打印
+	AutoTime   *bool  // 是否开启自动时间戳，默认不开启
+	CreateTime string // 创建时间字段名，默认 create_time
+	UpdateTime string // 更新时间字段名，默认 update_time
+}
+
 type UpdateOption struct {
 	Debug      *bool  // 是否打印最终执行的SQL语句，默认不打印
 	AutoTime   *bool  // 是否开启自动时间戳，默认不开启
@@ -309,23 +323,208 @@ func (db *tdb) Lock(lockStr ...string) *tdb {
 	return db
 }
 
-// Insert 添加数据, tg.Db("user").Insert()
-//func (db *tdb) Insert(data interface{}) (insertId int, err error) {
-//	sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", db.tableName)
-//	var stmt *sqlx.Stmt
-//	if db.tx != nil {
-//		stmt, err = db.tx.Preparex(sql)
-//	} else {
-//		stmt, err = db.instance.Preparex(sql)
-//	}
-//	if err != nil {
-//		return
-//	}
-//	defer stmt.Close()
-//}
+// InsertAll 添加多条数据, tg.Db("user").InsertAll(user)
+func (db *tdb) InsertAll(data []interface{}, option ...InsertAllOption) (err error) {
+	config := InsertAllOption{
+		Debug:      &db.config.Debug,     // 是否打印最终执行的SQL语句，默认不打印
+		AutoTime:   tgutl.PtrBool(false), // 是否开启自动时间戳，默认不开启
+		CreateTime: db.config.CreateTime, // 更新时间字段名，默认 create_time
+		UpdateTime: db.config.UpdateTime, // 更新时间字段名，默认 update_time
+	}
+	if len(option) > 0 {
+		if option[0].Debug != nil {
+			config.Debug = option[0].Debug
+		}
+		if option[0].AutoTime != nil {
+			config.AutoTime = option[0].AutoTime
+		}
+		createTime := option[0].CreateTime
+		if createTime != "" {
+			config.CreateTime = createTime
+		}
+		updateTime := option[0].UpdateTime
+		if updateTime != "" {
+			config.UpdateTime = updateTime
+		}
+	}
+
+	intoStr := ""
+	valueStr := ""
+	switch v := data[0].(type) {
+	case map[string]interface{}:
+		for key, _ := range v {
+			if intoStr != "" {
+				intoStr += ", "
+			}
+			intoStr += key
+			if valueStr != "" {
+				valueStr += ", "
+			}
+			valueStr += "?"
+		}
+	case struct{}:
+		elem := reflect.ValueOf(data).Elem()
+		for i := 0; i < elem.NumField(); i++ {
+			field := elem.Type().Field(i)
+			if intoStr != "" {
+				intoStr += ", "
+			}
+			intoStr += field.Tag.Get("p")
+			db.values = append(db.values, elem.Field(i).Interface())
+			if valueStr != "" {
+				valueStr += ", "
+			}
+			valueStr += "?"
+		}
+	}
+
+	if *config.AutoTime {
+		if !strings.Contains(intoStr, config.CreateTime) {
+			intoStr += fmt.Sprintf(", %s", config.CreateTime)
+			valueStr += ", NOW()"
+		}
+		if !strings.Contains(intoStr, config.UpdateTime) {
+			intoStr += fmt.Sprintf(", %s", config.UpdateTime)
+			valueStr += ", NOW()"
+		}
+	}
+
+	valuesStr := ""
+	for _, item := range data {
+		if valuesStr != "" {
+			valuesStr += ", "
+		}
+		valuesStr += fmt.Sprintf("(%s)", valueStr)
+		switch v := item.(type) {
+		case map[string]interface{}:
+			for _, value := range v {
+				db.values = append(db.values, value)
+			}
+		case struct{}:
+			elem := reflect.ValueOf(data).Elem()
+			for i := 0; i < elem.NumField(); i++ {
+				db.values = append(db.values, elem.Field(i).Interface())
+			}
+		}
+	}
+
+	sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES %s", db.tableName, intoStr, valuesStr)
+
+	var stmt *sqlx.Stmt
+	if db.tx != nil {
+		stmt, err = db.tx.Preparex(sql)
+	} else {
+		stmt, err = db.instance.Preparex(sql)
+	}
+	if err != nil {
+		return
+	}
+	_, err = stmt.Exec(db.values...)
+	if err != nil {
+		return
+	}
+
+	// DEBUG sql语句打印
+	if *config.Debug {
+		fmt.Println("[SQL] " + tgutl.SqlFormat(sql, db.values))
+	}
+
+	return nil
+}
+
+// Insert 添加数据, tg.Db("user").Insert(user)
+func (db *tdb) Insert(data interface{}, option ...InsertOption) (insertId int64, err error) {
+	config := InsertOption{
+		Debug:      &db.config.Debug,     // 是否打印最终执行的SQL语句，默认不打印
+		AutoTime:   tgutl.PtrBool(false), // 是否开启自动时间戳，默认不开启
+		CreateTime: db.config.CreateTime, // 更新时间字段名，默认 create_time
+		UpdateTime: db.config.UpdateTime, // 更新时间字段名，默认 update_time
+	}
+	if len(option) > 0 {
+		if option[0].Debug != nil {
+			config.Debug = option[0].Debug
+		}
+		if option[0].AutoTime != nil {
+			config.AutoTime = option[0].AutoTime
+		}
+		createTime := option[0].CreateTime
+		if createTime != "" {
+			config.CreateTime = createTime
+		}
+		updateTime := option[0].UpdateTime
+		if updateTime != "" {
+			config.UpdateTime = updateTime
+		}
+	}
+
+	intoStr := ""
+	valueStr := ""
+	switch v := data.(type) {
+	case map[string]interface{}:
+		for key, value := range v {
+			if intoStr != "" {
+				intoStr += ", "
+			}
+			intoStr += key
+			db.values = append(db.values, value)
+			if valueStr != "" {
+				valueStr += ", "
+			}
+			valueStr += "?"
+		}
+	case struct{}:
+		elem := reflect.ValueOf(data).Elem()
+		for i := 0; i < elem.NumField(); i++ {
+			field := elem.Type().Field(i)
+			if intoStr != "" {
+				intoStr += ", "
+			}
+			intoStr += field.Tag.Get("p")
+			db.values = append(db.values, elem.Field(i).Interface())
+			if valueStr != "" {
+				valueStr += ", "
+			}
+			valueStr += "?"
+		}
+	}
+
+	if *config.AutoTime {
+		if !strings.Contains(intoStr, config.CreateTime) {
+			intoStr += fmt.Sprintf(", %s", config.CreateTime)
+			valueStr += ", NOW()"
+		}
+		if !strings.Contains(intoStr, config.UpdateTime) {
+			intoStr += fmt.Sprintf(", %s", config.UpdateTime)
+			valueStr += ", NOW()"
+		}
+	}
+
+	sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", db.tableName, intoStr, valueStr)
+
+	var stmt *sqlx.Stmt
+	if db.tx != nil {
+		stmt, err = db.tx.Preparex(sql)
+	} else {
+		stmt, err = db.instance.Preparex(sql)
+	}
+	if err != nil {
+		return
+	}
+	res, err := stmt.Exec(db.values...)
+	if err != nil {
+		return res.LastInsertId()
+	}
+
+	// DEBUG sql语句打印
+	if *config.Debug {
+		fmt.Println("[SQL] " + tgutl.SqlFormat(sql, db.values))
+	}
+
+	return res.LastInsertId()
+}
 
 // Update 更新数据, tg.Db("user").Where("id", "=", 1).Update(user)
-func (db *tdb) Update(scan any, option ...UpdateOption) (err error) {
+func (db *tdb) Update(data any, option ...UpdateOption) (err error) {
 	config := UpdateOption{
 		Debug:      &db.config.Debug,     // 是否打印最终执行的SQL语句，默认不打印
 		AutoTime:   tgutl.PtrBool(false), // 是否开启自动时间戳，默认不开启
@@ -340,8 +539,8 @@ func (db *tdb) Update(scan any, option ...UpdateOption) (err error) {
 			config.AutoTime = option[0].AutoTime
 		}
 		updateTime := option[0].UpdateTime
-		if updateTime == "" {
-			updateTime = db.config.UpdateTime
+		if updateTime != "" {
+			config.UpdateTime = updateTime
 		}
 		if option[0].AllProtect != nil {
 			config.AllProtect = option[0].AllProtect
@@ -349,7 +548,7 @@ func (db *tdb) Update(scan any, option ...UpdateOption) (err error) {
 	}
 
 	setStr := ""
-	switch v := scan.(type) {
+	switch v := data.(type) {
 	case map[string]interface{}:
 		for key, value := range v {
 			if setStr != "" {
@@ -359,7 +558,7 @@ func (db *tdb) Update(scan any, option ...UpdateOption) (err error) {
 			db.values = append([]interface{}{value}, db.values...)
 		}
 	case struct{}:
-		elem := reflect.ValueOf(scan).Elem()
+		elem := reflect.ValueOf(data).Elem()
 		for i := 0; i < elem.NumField(); i++ {
 			field := elem.Type().Field(i)
 			if setStr != "" {
@@ -384,7 +583,7 @@ func (db *tdb) Update(scan any, option ...UpdateOption) (err error) {
 		return errors.New(warn)
 	}
 
-	sql := fmt.Sprintf("UPDATE %s SET %s %s %s", db.tableName, setStr, db.whereStr, db.lockStr)
+	sql := fmt.Sprintf("UPDATE %s SET %s %s", db.tableName, setStr, db.whereStr)
 
 	var stmt *sqlx.Stmt
 	if db.tx != nil {
@@ -425,8 +624,8 @@ func (db *tdb) Decr(field string, num int, option ...DecrOption) (err error) {
 			config.AutoTime = option[0].AutoTime
 		}
 		updateTime := option[0].UpdateTime
-		if updateTime == "" {
-			updateTime = db.config.UpdateTime
+		if updateTime != "" {
+			config.UpdateTime = updateTime
 		}
 		if option[0].AllProtect != nil {
 			config.AllProtect = option[0].AllProtect
@@ -485,8 +684,8 @@ func (db *tdb) Incr(field string, num int, option ...IncrOption) (err error) {
 			config.AutoTime = option[0].AutoTime
 		}
 		updateTime := option[0].UpdateTime
-		if updateTime == "" {
-			updateTime = db.config.UpdateTime
+		if updateTime != "" {
+			config.UpdateTime = updateTime
 		}
 		if option[0].AllProtect != nil {
 			config.AllProtect = option[0].AllProtect
@@ -498,7 +697,7 @@ func (db *tdb) Incr(field string, num int, option ...IncrOption) (err error) {
 		setStr += fmt.Sprintf(", %s = NOW()", config.UpdateTime)
 	}
 
-	sql := fmt.Sprintf("UPDATE %s SET %s %s %s", db.tableName, setStr, db.whereStr, db.lockStr)
+	sql := fmt.Sprintf("UPDATE %s SET %s %s", db.tableName, setStr, db.whereStr)
 	db.values = append([]interface{}{num}, db.values...)
 
 	if *config.AllProtect && !strings.Contains(db.whereStr, "WHERE") {
@@ -545,8 +744,8 @@ func (db *tdb) Delete(option ...DeleteOption) (err error) {
 			config.Debug = option[0].Debug
 		}
 		deleteTime := option[0].DeleteTime
-		if deleteTime == "" {
-			deleteTime = db.config.DeleteTime
+		if deleteTime != "" {
+			config.DeleteTime = deleteTime
 		}
 		if option[0].DeleteProtect != nil {
 			config.DeleteProtect = option[0].DeleteProtect
@@ -563,7 +762,7 @@ func (db *tdb) Delete(option ...DeleteOption) (err error) {
 			return errors.New(warn)
 		}
 	} else {
-		sql = fmt.Sprintf("DELETE FROM %s %s %s", db.tableName, db.whereStr, db.lockStr)
+		sql = fmt.Sprintf("DELETE FROM %s %s", db.tableName, db.whereStr)
 		if *config.DeleteProtect && !strings.Contains(db.whereStr, "WHERE") {
 			color.Yellow(warn)
 			return errors.New(warn)
@@ -612,8 +811,8 @@ func (db *tdb) Count(option ...CountOption) (count int, err error) {
 			config.Debug = option[0].Debug
 		}
 		deleteTime := option[0].DeleteTime
-		if deleteTime == "" {
-			deleteTime = config.DeleteTime
+		if deleteTime != "" {
+			config.DeleteTime = deleteTime
 		}
 	}
 	db.WhereIsNull(config.DeleteTime)
@@ -652,8 +851,8 @@ func (db *tdb) FindOne(scan any, option ...FindOneOption) (err error) {
 			config.Debug = option[0].Debug
 		}
 		deleteTime := option[0].DeleteTime
-		if deleteTime == "" {
-			deleteTime = config.DeleteTime
+		if deleteTime != "" {
+			config.DeleteTime = deleteTime
 		}
 	}
 	db.WhereIsNull(config.DeleteTime)
@@ -702,8 +901,8 @@ func (db *tdb) Select(scan any, option ...SelectOption) (err error) {
 			config.Debug = option[0].Debug
 		}
 		deleteTime := option[0].DeleteTime
-		if deleteTime == "" {
-			deleteTime = config.DeleteTime
+		if deleteTime != "" {
+			config.DeleteTime = deleteTime
 		}
 	}
 	db.WhereIsNull(config.DeleteTime)
