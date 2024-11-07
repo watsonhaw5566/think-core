@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"os"
 	"os/exec"
@@ -61,17 +62,17 @@ func initCmd() *cobra.Command {
 		Long:  "可通过[tg init 项目名]的方式初始化项目",
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) == 0 {
-				fmt.Println("[TG-CLI]你没有输入项目名称")
+				color.Yellow("[TG-CLI]你没有输入项目名称")
 				return
 			}
 			git := exec.Command("git", "clone", "https://github.com/zy598586050/think-ts.git", args[0])
 			git.Stdout = os.Stdout
 			git.Stderr = os.Stderr
 			if err := git.Run(); err != nil {
-				fmt.Println("[TG-CLI]初始化项目失败")
+				color.Red("[TG-CLI]初始化项目失败")
 				return
 			}
-			fmt.Printf("初始化项目[%s]成功", args[0])
+			color.Green(fmt.Sprintf("初始化项目[%s]成功", args[0]))
 		},
 	}
 }
@@ -84,7 +85,7 @@ func createCmd() *cobra.Command {
 		Long:  "可通过[tg create 模块名]的方式快速创建controller,dao,entity,service文件",
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) == 0 {
-				fmt.Println("[TG-CLI]你没有输入模块名称")
+				color.Yellow("[TG-CLI]你没有输入模块名称")
 				return
 			}
 		},
@@ -99,7 +100,7 @@ func syncCmd() *cobra.Command {
 		Long:  "可通过[tg sync 表名]的方式快速在entity文件夹下生成对应数据库表的结构体文件，不传表名默认是所有表",
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) == 0 {
-				fmt.Println("[TG-CLI]你没有输入模块名称")
+				color.Yellow("[TG-CLI]你没有输入表名")
 				return
 			}
 		},
