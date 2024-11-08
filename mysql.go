@@ -815,7 +815,9 @@ func (db *tdb) Count(option ...CountOption) (count int, err error) {
 			config.DeleteTime = deleteTime
 		}
 	}
-	db.WhereIsNull(config.DeleteTime)
+	if !strings.Contains(db.whereStr, fmt.Sprintf("%s IS NULL", config.DeleteTime)) {
+		db.WhereIsNull(config.DeleteTime)
+	}
 	sql := fmt.Sprintf("SELECT COUNT(*) FROM %s %s %s", db.tableName, db.whereStr, db.lockStr)
 	var stmt *sqlx.Stmt
 	if db.tx != nil {
@@ -855,7 +857,9 @@ func (db *tdb) FindOne(scan any, option ...FindOneOption) (err error) {
 			config.DeleteTime = deleteTime
 		}
 	}
-	db.WhereIsNull(config.DeleteTime)
+	if !strings.Contains(db.whereStr, fmt.Sprintf("%s IS NULL", config.DeleteTime)) {
+		db.WhereIsNull(config.DeleteTime)
+	}
 	sql := fmt.Sprintf("SELECT %s FROM %s %s %s", db.fieldStr, db.tableName, db.whereStr, db.lockStr)
 	var stmt *sqlx.Stmt
 	if db.tx != nil {
@@ -905,7 +909,9 @@ func (db *tdb) Select(scan any, option ...SelectOption) (err error) {
 			config.DeleteTime = deleteTime
 		}
 	}
-	db.WhereIsNull(config.DeleteTime)
+	if !strings.Contains(db.whereStr, fmt.Sprintf("%s IS NULL", config.DeleteTime)) {
+		db.WhereIsNull(config.DeleteTime)
+	}
 	sql := fmt.Sprintf("SELECT %s FROM %s %s %s", db.fieldStr, db.tableName, db.whereStr, db.lockStr)
 	var stmt *sqlx.Stmt
 	if db.tx != nil {

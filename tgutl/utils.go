@@ -3,8 +3,10 @@ package tgutl
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/md5"
 	rand2 "crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"github.com/think-go/tg/tgcfg"
 	"io"
@@ -165,4 +167,11 @@ func SqlFormat(sql string, value []interface{}) string {
 // PtrBool 得到对应的指针
 func PtrBool(b bool) *bool {
 	return &b
+}
+
+// EncryptionMd5 md5加密
+func EncryptionMd5(s string) string {
+	ctx := md5.New()
+	ctx.Write([]byte(s))
+	return hex.EncodeToString(ctx.Sum(nil))
 }
