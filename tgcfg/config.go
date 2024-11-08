@@ -55,7 +55,7 @@ func (conf *config) Get(key string) gjson.Result {
 func init() {
 	yamlFile, err := os.ReadFile("./config/config.yaml")
 	if err != nil {
-		panic(err)
+		return
 	}
 	err = yaml.Unmarshal(yamlFile, &Config)
 	if err != nil {
