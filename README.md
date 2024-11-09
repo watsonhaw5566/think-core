@@ -18,10 +18,12 @@
   <br>
 </p>
 
-<p align="center">一个轻量级的GO WEB应用框架</p>
+<p align="center" style="font-weight:bold;font-size:20px;padding-top:5px;">一个轻量级的GO WEB应用框架</p>
 
 - 💪 ORM思想链式操作CRUD
 - 🔥 应用级提炼封装更贴近业务场景
+- 🚀 高效路由管理，支持灵活的URL映射
+- 🛠️ 自动化的代码生成工具，快速搭建项目基础结构
 
 ## ThinkGO框架
 
