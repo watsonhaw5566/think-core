@@ -25,7 +25,7 @@
 
 ## ThinkGO框架
 
-[ThinkGO](https://www.think-go.com.cn) 是一个轻量级的GO WEB应用框架，提供一套结构化、模块化的开发环境，为减少了开发人员的学习成本，提高团队的开发效率而生。
+[ThinkGO](https://www.think-go.com.cn) 是一个轻量级的GO WEB应用框架，提供一套结构化、模块化的开发环境，为减少开发人员的学习成本，提高团队的开发效率而生。
 
 ## 目录结构
 
