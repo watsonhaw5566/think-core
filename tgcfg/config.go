@@ -43,7 +43,7 @@ func (conf *config) GetMySqlSource(key string) gjson.Result {
 	return gjson.Get(string(extraJSON), key)
 }
 
-// Get 获取配置
+// Get 获取自定义额外配置
 func (conf *config) Get(key string) gjson.Result {
 	extraJSON, err := json.Marshal(conf.Extra)
 	if err != nil {
