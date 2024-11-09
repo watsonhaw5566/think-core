@@ -53,6 +53,7 @@ func (conf *config) Get(key string) gjson.Result {
 }
 
 func init() {
+	Config = &config{}
 	yamlFile, err := os.ReadFile("./config/config.yaml")
 	if err != nil {
 		return
