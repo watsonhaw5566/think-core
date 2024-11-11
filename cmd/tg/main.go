@@ -269,7 +269,7 @@ func createModule(name string, template string, num int, url string) {
 		return
 	}
 	path := filepath.Join(url, fmt.Sprintf("%s.go", name))
-	err = os.WriteFile(path, structCode, 0644)
+	err = os.WriteFile(path, structCode, 7777)
 	if err != nil {
 		color.Red("文件写入出错%v", err)
 		return
@@ -347,7 +347,7 @@ func createCode(tableName string) {
 	}
 
 	path := filepath.Join("app/entity", fmt.Sprintf("%s.go", tableName))
-	err = os.WriteFile(path, structCode, 0644)
+	err = os.WriteFile(path, structCode, 7777)
 	if err != nil {
 		color.Red("文件写入出错%v", err)
 		return
