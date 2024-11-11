@@ -22,7 +22,7 @@ var (
 type Source struct {
 	Link        string
 	Debug       bool   // 是否开启全局SQL打印
-	CreateTime  string // 建时间字段名
+	CreateTime  string // 创建时间字段名
 	UpdateTime  string // 更新时间字段名
 	DeleteTime  string // 删除时间字段名
 	MaxOpen     int    // 最大打开连接数
