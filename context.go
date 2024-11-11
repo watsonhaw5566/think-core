@@ -56,14 +56,14 @@ type result struct {
 	Data    interface{} `json:"data"`
 }
 
-// SuccessOptions 自定义
-type SuccessOptions struct {
+// SuccessOption 自定义
+type SuccessOption struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 }
 
-// FailOptions 自定义
-type FailOptions struct {
+// FailOption 自定义
+type FailOption struct {
 	StatusCode int `json:"statusCode"`
 	ErrorCode  int `json:"errorCode"`
 }
@@ -77,42 +77,42 @@ type Exception struct {
 }
 
 // Success 成功输出信息
-func (ctx *Context) Success(data interface{}, options ...SuccessOptions) {
-	var opt SuccessOptions
-	if len(options) > 0 {
-		opt = options[0]
+func (ctx *Context) Success(data interface{}, option ...SuccessOption) {
+	config := SuccessOption{
+		Code:    http.StatusOK,
+		Message: "ok",
 	}
-	code := opt.Code
-	if code == 0 {
-		code = http.StatusOK
-	}
-	message := opt.Message
-	if message == "" {
-		message = "ok"
+	if len(option) > 0 {
+		if option[0].Code != 0 {
+			config.Code = option[0].Code
+		}
+		if option[0].Message != "" {
+			config.Message = option[0].Message
+		}
 	}
 	ctx.JSON(http.StatusOK, result{
-		Code:    code,
-		Message: message,
+		Code:    config.Code,
+		Message: config.Message,
 		Data:    data,
 	})
 }
 
 // Fail 异常输出信息
-func (ctx *Context) Fail(message string, options ...FailOptions) {
-	var opt FailOptions
-	if len(options) > 0 {
-		opt = options[0]
+func (ctx *Context) Fail(message string, option ...FailOption) {
+	config := FailOption{
+		StatusCode: http.StatusUnauthorized,
+		ErrorCode:  ErrorCode.VALIDATE,
 	}
-	statusCode := opt.StatusCode
-	if statusCode == 0 {
-		statusCode = http.StatusOK
+	if len(option) > 0 {
+		if option[0].StatusCode != 0 {
+			config.StatusCode = option[0].StatusCode
+		}
+		if option[0].ErrorCode != 0 {
+			config.ErrorCode = option[0].ErrorCode
+		}
 	}
-	errCode := opt.ErrorCode
-	if errCode == 0 {
-		errCode = ErrorCode.VALIDATE
-	}
-	ctx.JSON(statusCode, SuccessOptions{
-		Code:    errCode,
+	ctx.JSON(config.StatusCode, SuccessOption{
+		Code:    config.ErrorCode,
 		Message: message,
 	})
 }
