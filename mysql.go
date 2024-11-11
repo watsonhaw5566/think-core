@@ -93,6 +93,7 @@ type tdb struct {
 	tableName string
 	whereStr  string
 	fieldStr  string
+	joinStr   string
 	lockStr   string
 	values    []interface{}
 	tx        *sqlx.Tx
@@ -308,6 +309,20 @@ func (db *tdb) Page(current int, size int) *tdb {
 // Group 分组查询, tg.Db("user").Field("id, max(score)").Group("id").Select(&user)
 func (db *tdb) Group(field string) *tdb {
 	db.whereStr += fmt.Sprintf(" GROUP BY %s", field)
+	return db
+}
+
+// Join 连表查询, tg.Db('user').Join("role", "user.id = role.user_id").Where("user.id", "=", 1).Select(&user)
+// INNER: 如果表中有至少一个匹配，则返回行
+// LEFT: 即使右表中没有匹配，也从左表返回所有的行
+// RIGHT: 即使左表中没有匹配，也从右表返回所有的行
+// FULL: 只要其中一个表中存在匹配，就返回行
+func (db *tdb) Join(tableName string, whereStr string, joinType ...string) *tdb {
+	joinTypeStr := "LEFT"
+	if len(joinType) > 0 {
+		joinTypeStr = joinType[0]
+	}
+	db.joinStr += fmt.Sprintf("%s JOIN %s ON %s", joinTypeStr, tableName, whereStr)
 	return db
 }
 
@@ -818,7 +833,7 @@ func (db *tdb) Count(option ...CountOption) (count int, err error) {
 	if !strings.Contains(db.whereStr, fmt.Sprintf("%s IS NULL", config.DeleteTime)) {
 		db.WhereIsNull(config.DeleteTime)
 	}
-	sql := fmt.Sprintf("SELECT COUNT(*) FROM %s %s %s", db.tableName, db.whereStr, db.lockStr)
+	sql := fmt.Sprintf("SELECT COUNT(*) FROM %s %s %s %s", db.tableName, db.joinStr, db.whereStr, db.lockStr)
 	var stmt *sqlx.Stmt
 	if db.tx != nil {
 		stmt, err = db.tx.Preparex(sql)
@@ -860,7 +875,7 @@ func (db *tdb) FindOne(scan any, option ...FindOneOption) (err error) {
 	if !strings.Contains(db.whereStr, fmt.Sprintf("%s IS NULL", config.DeleteTime)) {
 		db.WhereIsNull(config.DeleteTime)
 	}
-	sql := fmt.Sprintf("SELECT %s FROM %s %s %s", db.fieldStr, db.tableName, db.whereStr, db.lockStr)
+	sql := fmt.Sprintf("SELECT %s FROM %s %s %s %s", db.fieldStr, db.tableName, db.joinStr, db.whereStr, db.lockStr)
 	var stmt *sqlx.Stmt
 	if db.tx != nil {
 		stmt, err = db.tx.Preparex(sql)
@@ -912,7 +927,7 @@ func (db *tdb) Select(scan any, option ...SelectOption) (err error) {
 	if !strings.Contains(db.whereStr, fmt.Sprintf("%s IS NULL", config.DeleteTime)) {
 		db.WhereIsNull(config.DeleteTime)
 	}
-	sql := fmt.Sprintf("SELECT %s FROM %s %s %s", db.fieldStr, db.tableName, db.whereStr, db.lockStr)
+	sql := fmt.Sprintf("SELECT %s FROM %s %s %s %s", db.fieldStr, db.tableName, db.joinStr, db.whereStr, db.lockStr)
 	var stmt *sqlx.Stmt
 	if db.tx != nil {
 		stmt, err = db.tx.Preparex(sql)
