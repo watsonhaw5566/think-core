@@ -17,7 +17,7 @@ func recoveryMiddleware() HandlerFunc {
 				if e, ok := err.(Exception); ok {
 					jsonStr, _ := json.Marshal(e)
 					tglog.Log().Error(string(jsonStr))
-					ctx.Fail(e.Message, FailOptions{
+					ctx.Fail(e.Message, FailOption{
 						StatusCode: e.StateCode,
 						ErrorCode:  e.ErrorCode,
 					})
