@@ -70,6 +70,7 @@ go get -u github.com/think-go/tg
 然后在您项目中可以像下面这样去编写
 
 ```
+tgcfg.Config.Server.Address = ":8808"
 engine := tg.New()
 engine.GET("/hello", func(ctx *tg.Context) {
   ctx.Success("ok")
