@@ -212,8 +212,8 @@ func (ctx *Context) PostForm(key string, defaultFormMaxMemory ...int64) gjson.Re
 }
 
 // PostDefaultForm 获取POST请求参数,如果没有内容赋默认值
-func (ctx *Context) PostDefaultForm(key string, value any) gjson.Result {
-	val := ctx.PostForm(key)
+func (ctx *Context) PostDefaultForm(key string, value any, defaultFormMaxMemory ...int64) gjson.Result {
+	val := ctx.PostForm(key, defaultFormMaxMemory...)
 	if val.String() == "" {
 		return gjson.Get(fmt.Sprintf(`{"%s":%v}`, key, value), key)
 	}
