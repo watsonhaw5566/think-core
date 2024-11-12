@@ -81,7 +81,7 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if ok || tgutl.HasSuffix(r.URL.Path) {
 		engine.methodHandler(r.URL.Path, method, engine.handlerFuncMap[r.URL.Path][method], ctx)
 	} else {
-		ctx.Fail("路由不存在", FailOptions{
+		ctx.Fail("路由不存在", FailOption{
 			StatusCode: http.StatusNotFound,
 			ErrorCode:  http.StatusNotFound,
 		})
