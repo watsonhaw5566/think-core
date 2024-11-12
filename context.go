@@ -307,7 +307,7 @@ func bindParams(ctx *Context, req any, values url.Values) {
 	CheckParams(req)
 }
 
-// BindStructValidate 结构体参数映射,具有参数验证功能.
+// BindStructValidate 结构体参数映射,具有参数验证功能
 func (ctx *Context) BindStructValidate(req any, defaultFormMaxMemory ...int64) {
 	maxMemory := int64(32) << 20
 	if len(defaultFormMaxMemory) > 0 {
