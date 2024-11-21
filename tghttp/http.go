@@ -79,6 +79,12 @@ func (r *response) ReadAllString() string {
 	return string(body)
 }
 
+func (r *response) ReadAll() []byte {
+	body, _ := io.ReadAll(r.resp.Body)
+	defer r.resp.Body.Close()
+	return body
+}
+
 func (c *httpClient) doRequest(method string, path string, params map[string]interface{}) (*response, error) {
 	var reader io.Reader
 	contentType := c.headers["Content-Type"]
