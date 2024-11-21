@@ -13,17 +13,21 @@ import (
 	"time"
 )
 
-type HttpClient struct {
+type response struct {
+	resp *http.Response
+}
+
+type httpClient struct {
 	client  http.Client
 	headers map[string]string
 }
 
-func NewClient(minute ...int) *HttpClient {
+func NewClient(minute ...int) *httpClient {
 	duration := time.Duration(60) * time.Second
 	if len(minute) > 0 {
 		duration = time.Duration(minute[0]) * time.Second
 	}
-	client := &HttpClient{
+	client := &httpClient{
 		client: http.Client{
 			Transport: &http.Transport{
 				MaxIdleConnsPerHost:   5,                // 每个主机的最大空闲连接数
@@ -40,51 +44,57 @@ func NewClient(minute ...int) *HttpClient {
 	return client
 }
 
-func (c *HttpClient) SetHeader(header map[string]string) *HttpClient {
+func (c *httpClient) SetHeader(header map[string]string) *httpClient {
 	for key, value := range header {
 		c.headers[key] = value
 	}
 	return c
 }
 
-func (c *HttpClient) GET(url string, params ...map[string]interface{}) (io.ReadCloser, error) {
+func (c *httpClient) GET(url string, params ...map[string]interface{}) (*response, error) {
 	if len(params) > 0 {
 		url = url + "?" + c.toValues(params[0])
 	}
 	return c.doRequest("GET", url, nil)
 }
 
-func (c *HttpClient) POST(url string, params map[string]interface{}) (io.ReadCloser, error) {
+func (c *httpClient) POST(url string, params map[string]interface{}) (*response, error) {
 	if c.hasFile(params) {
 		return c.doRequest("POST", url, params)
 	}
-	return c.doRequest("POST", url, c.toValues(params))
+	return c.doRequest("POST", url, params)
 }
 
-func (c *HttpClient) PUT(url string, params map[string]interface{}) (io.ReadCloser, error) {
-	return c.doRequest("PUT", url, c.toValues(params))
+func (c *httpClient) PUT(url string, params map[string]interface{}) (*response, error) {
+	return c.doRequest("PUT", url, params)
 }
 
-func (c *HttpClient) DELETE(url string, params map[string]interface{}) (io.ReadCloser, error) {
-	return c.doRequest("DELETE", url, c.toValues(params))
+func (c *httpClient) DELETE(url string, params map[string]interface{}) (*response, error) {
+	return c.doRequest("DELETE", url, params)
 }
 
-func (c *HttpClient) doRequest(method string, path string, params interface{}) (io.ReadCloser, error) {
+func (r *response) ReadAllString() string {
+	body, _ := io.ReadAll(r.resp.Body)
+	defer r.resp.Body.Close()
+	return string(body)
+}
+
+func (c *httpClient) doRequest(method string, path string, params map[string]interface{}) (*response, error) {
 	var reader io.Reader
-	switch c.headers["Content-Type"] {
-	case "application/x-www-form-urlencoded":
-		reader = strings.NewReader(params.(string))
-	case "application/json":
+	contentType := c.headers["Content-Type"]
+	switch {
+	case strings.Contains(contentType, "application/x-www-form-urlencoded"):
+		reader = strings.NewReader(c.toValues(params))
+	case strings.Contains(contentType, "application/json"):
 		jsonData, _ := json.Marshal(params)
 		reader = bytes.NewReader(jsonData)
-	case "multipart/form-data":
+	case strings.Contains(contentType, "multipart/form-data"):
 		var buf bytes.Buffer
 		multiWriter := multipart.NewWriter(&buf)
-		formData := params.(map[string]interface{})
-		for key, value := range formData {
+		for key, value := range params {
 			switch v := value.(type) {
-			case string:
-				if err := multiWriter.WriteField(key, v); err != nil {
+			case string, int:
+				if err := multiWriter.WriteField(key, fmt.Sprintf("%v", v)); err != nil {
 					return nil, err
 				}
 			case *os.File:
@@ -93,10 +103,9 @@ func (c *HttpClient) doRequest(method string, path string, params interface{}) (
 				}
 			}
 		}
-		if err := multiWriter.Close(); err != nil {
-			return nil, err
-		}
 		reader = &buf
+		contentType = multiWriter.FormDataContentType()
+		multiWriter.Close()
 	}
 	req, err := http.NewRequest(method, path, reader)
 	if err != nil {
@@ -104,15 +113,18 @@ func (c *HttpClient) doRequest(method string, path string, params interface{}) (
 	}
 	for key, value := range c.headers {
 		req.Header.Set(key, value)
+		if strings.Contains(contentType, "multipart/form-data") {
+			req.Header.Set("Content-Type", contentType)
+		}
 	}
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
-	return resp.Body, nil
+	return &response{resp: resp}, nil
 }
 
-func (c *HttpClient) writeFormFile(writer *multipart.Writer, key string, file *os.File) error {
+func (c *httpClient) writeFormFile(writer *multipart.Writer, key string, file *os.File) error {
 	part, err := writer.CreateFormFile(key, file.Name())
 	if err != nil {
 		return err
@@ -122,7 +134,7 @@ func (c *HttpClient) writeFormFile(writer *multipart.Writer, key string, file *o
 	return err
 }
 
-func (c *HttpClient) toValues(args map[string]interface{}) string {
+func (c *httpClient) toValues(args map[string]interface{}) string {
 	params := url.Values{}
 	for key, value := range args {
 		params.Set(key, fmt.Sprintf("%v", value))
@@ -130,7 +142,7 @@ func (c *HttpClient) toValues(args map[string]interface{}) string {
 	return params.Encode()
 }
 
-func (c *HttpClient) hasFile(params map[string]interface{}) bool {
+func (c *httpClient) hasFile(params map[string]interface{}) bool {
 	for _, v := range params {
 		if _, ok := v.(*os.File); ok {
 			return true

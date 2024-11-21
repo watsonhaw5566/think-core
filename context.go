@@ -204,6 +204,10 @@ func (ctx *Context) PostForm(key string, defaultFormMaxMemory ...int64) gjson.Re
 		defer ctx.Request.Body.Close()
 		return gjson.Get(string(body), key)
 	}
+	if strings.Contains(contentType, "multipart/form-data") {
+		value := ctx.Request.FormValue(key)
+		return gjson.Get(fmt.Sprintf(`{"%s":"%s"}`, key, value), key)
+	}
 	value := ctx.Request.PostForm.Get(key)
 	if value == "" {
 		return gjson.Result{}
