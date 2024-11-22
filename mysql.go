@@ -367,7 +367,7 @@ func (db *tdb) InsertAll(data []interface{}, option ...InsertAllOption) (err err
 	valueStr := ""
 	switch v := data[0].(type) {
 	case map[string]interface{}:
-		for key, _ := range v {
+		for key := range v {
 			if intoStr != "" {
 				intoStr += ", "
 			}

@@ -39,6 +39,7 @@ type errorCode struct {
 	TokenExpire int
 	EXCEPTION   int
 	MySqlError  int
+	RedisError  int
 }
 
 // ErrorCode 初始化错误码
@@ -47,6 +48,7 @@ var ErrorCode = &errorCode{
 	TokenExpire: 10002, // Token过期
 	EXCEPTION:   20001, // 服务或代码异常类错误
 	MySqlError:  20002, // mysql错误
+	RedisError:  20003, // redis错误
 }
 
 // result 统一返回结果

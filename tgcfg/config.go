@@ -31,12 +31,22 @@ type config struct {
 	Server server                 `yaml:"server"`
 	Log    log                    `yaml:"log"`
 	MySql  map[string]interface{} `yaml:"mysql"`
+	Redis  map[string]interface{} `yaml:"redis"`
 	Extra  map[string]interface{} `yaml:"extra"`
 }
 
 // GetMySqlSource 获取数据源
 func (conf *config) GetMySqlSource(key string) gjson.Result {
 	extraJSON, err := json.Marshal(conf.MySql)
+	if err != nil {
+		return gjson.Result{}
+	}
+	return gjson.Get(string(extraJSON), key)
+}
+
+// GetRedisSource 获取数据源
+func (conf *config) GetRedisSource(key string) gjson.Result {
+	extraJSON, err := json.Marshal(conf.Redis)
 	if err != nil {
 		return gjson.Result{}
 	}
