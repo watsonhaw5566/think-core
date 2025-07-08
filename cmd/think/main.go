@@ -220,7 +220,7 @@ func initCmd() *cobra.Command {
 				color.Yellow("[Think CLI] 请输入项目名称")
 				return
 			}
-			git := exec.Command("git", "clone", "https://github.com/think-go/think-go.git", args[0])
+			git := exec.Command("git", "clone", "https://github.com/watsonhaw5566/think-go-template.git", args[0])
 			git.Stdout = os.Stdout
 			git.Stderr = os.Stderr
 			if err := git.Run(); err != nil {
