@@ -3,7 +3,6 @@
 <p align="center">
     <img src="https://img.shields.io/github/v/release/watsonhaw5566/think-core.svg?style=flat-square">
     <img src="https://pkg.go.dev/badge/github.com/watsonahaw5566/think-core?status.svg">
-    <img src="https://codecov.io/gh/think-go/tg/branch/master/graph/badge.svg"/>
   <br>
 </p>
 
