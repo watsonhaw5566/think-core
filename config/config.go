@@ -1,4 +1,4 @@
-package tgcfg
+package config
 
 import (
 	"encoding/json"

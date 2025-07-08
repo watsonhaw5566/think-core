@@ -1,4 +1,4 @@
-package tg
+package think
 
 import (
 	"fmt"

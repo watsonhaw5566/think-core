@@ -1,10 +1,10 @@
-package tglog
+package log
 
 import (
 	logs "github.com/lestrrat-go/file-rotatelogs"
 	"github.com/rifflock/lfshook"
 	"github.com/sirupsen/logrus"
-	"github.com/think-go/tg/tgcfg"
+	"github.com/watsonhaw5566/think-core/config"
 	"io"
 	"os"
 	"path/filepath"
@@ -17,12 +17,12 @@ var loggerFile string        // 日志路径
 
 // 初始化日志路径
 func init() {
-	loggerFile = filepath.Join(tgcfg.Config.Log.Path, tgcfg.Config.Log.Name)
+	loggerFile = filepath.Join(config.Config.Log.Path, config.Config.Log.Name)
 }
 
 // Log 日志方法
 func Log() *logrus.Logger {
-	if tgcfg.Config.Log.Model == "file" {
+	if config.Config.Log.Model == "file" {
 		// 文件输出
 		return logFile()
 	} else {
@@ -46,13 +46,13 @@ func logFile() *logrus.Logger {
 
 		logWriter, _ := logs.New(
 			loggerFile+"_%Y%m%d.log",
-			logs.WithMaxAge(time.Duration(tgcfg.Config.Log.MaxAge)*24*time.Hour),
+			logs.WithMaxAge(time.Duration(config.Config.Log.MaxAge)*24*time.Hour),
 			logs.WithRotationTime(24*time.Hour),
 		)
 
 		errorLogWriter, _ := logs.New(
 			loggerFile+"_error_%Y%m%d.log",
-			logs.WithMaxAge(time.Duration(tgcfg.Config.Log.MaxAge)*24*time.Hour),
+			logs.WithMaxAge(time.Duration(config.Config.Log.MaxAge)*24*time.Hour),
 			logs.WithRotationTime(24*time.Hour),
 		)
 

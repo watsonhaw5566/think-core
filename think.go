@@ -1,11 +1,11 @@
-package tg
+package think
 
 import (
 	"context"
 	"fmt"
 	"github.com/fatih/color"
-	"github.com/think-go/tg/tgcfg"
-	"github.com/think-go/tg/tgutl"
+	"github.com/watsonhaw5566/think-core/config"
+	"github.com/watsonhaw5566/think-core/util"
 	"net"
 	"net/http"
 	"os"
@@ -22,7 +22,6 @@ const StartText = `
     | |  | '_ \| | '_ \| |/ / | |_ | |  | |
     | |  | | | | | | | |   <| |__| | |__| |
     |_|  |_| |_|_|_| |_|_|\_\\_____|\____/
-
 `
 
 // Engine 定义引擎结构体
@@ -31,7 +30,7 @@ type Engine struct {
 	pool sync.Pool
 }
 
-// New 初始化tg引擎
+// New 初始化 think 引擎
 func New() *Engine {
 	engine := &Engine{
 		routerGroup: routerGroup{
@@ -78,7 +77,7 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx.Request = r
 	method := r.Method
 	_, ok := engine.handlerFuncMap[r.URL.Path][method]
-	if ok || tgutl.HasSuffix(r.URL.Path) {
+	if ok || util.HasSuffix(r.URL.Path) {
 		engine.methodHandler(r.URL.Path, method, engine.handlerFuncMap[r.URL.Path][method], ctx)
 	} else {
 		ctx.Fail("路由不存在", FailOption{
@@ -98,15 +97,15 @@ func (engine *Engine) Run() {
 
 	// http服务
 	cmd := &http.Server{
-		Addr:    tgcfg.Config.Server.Address,
+		Addr:    config.Config.Server.Address,
 		Handler: engine,
 	}
 
 	// 异步启动服务
 	go func() {
-		color.Yellow("[ThinkGO]服务正在启动...")
+		color.Yellow("[Think GO]服务正在启动...")
 		if err := cmd.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			color.Red("[ThinkGO]服务启动失败")
+			color.Red("[Think GO]服务启动失败")
 			return
 		}
 	}()
@@ -116,13 +115,13 @@ func (engine *Engine) Run() {
 	// 检查端口是否已经打开
 	go func() {
 		for {
-			conn, err := net.Dial("tcp", tgcfg.Config.Server.Address)
+			conn, err := net.Dial("tcp", config.Config.Server.Address)
 			if err == nil {
 				conn.Close()
 				fmt.Print(strings.TrimPrefix(StartText, "\n"))
-				color.Green("[ThinkGO]服务启动成功")
-				color.Blue(fmt.Sprintf("[ThinkGO]服务地址: http://127.0.0.1%s", tgcfg.Config.Server.Address))
-				color.Blue(fmt.Sprintf("[ThinkGO]接口文档地址: http://127.0.0.1%s/api.json", tgcfg.Config.Server.Address))
+				color.Green("[Think GO]服务启动成功")
+				color.Blue(fmt.Sprintf("[Think GO]服务地址: http://127.0.0.1%s", config.Config.Server.Address))
+				color.Blue(fmt.Sprintf("[Think GO]接口文档地址: http://127.0.0.1%s/api.json", config.Config.Server.Address))
 				done <- true
 				break
 			}
@@ -134,7 +133,7 @@ func (engine *Engine) Run() {
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):
-		color.Red("[ThinkGO]服务启动超时,请手动重启")
+		color.Red("[Think GO]服务启动超时,请手动重启")
 		return
 	}
 
@@ -145,8 +144,8 @@ func (engine *Engine) Run() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := cmd.Shutdown(ctx); err != nil {
-		color.Red("[ThinkGO]服务未能正常关闭")
+		color.Red("[Think GO]服务未能正常关闭")
 		return
 	}
-	color.Green("[ThinkGO]服务正常关闭")
+	color.Green("[Think GO]服务正常关闭")
 }

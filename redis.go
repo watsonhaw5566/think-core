@@ -1,10 +1,10 @@
-package tg
+package think
 
 import (
 	"context"
 	"fmt"
 	"github.com/redis/go-redis/v9"
-	"github.com/think-go/tg/tgcfg"
+	"github.com/think-go/tg/config"
 	"net/http"
 	"sync"
 	"time"
@@ -28,10 +28,10 @@ type tRdb struct {
 
 func RDb(source ...RSource) *tRdb {
 	config := RSource{
-		Addr:     tgcfg.Config.GetRedisSource("default.addr").String(),
-		Password: tgcfg.Config.GetRedisSource("default.password").String(),
-		DB:       int(tgcfg.Config.GetRedisSource("default.db").Int()),
-		PoolSize: int(tgcfg.Config.GetRedisSource("default.poolSize").Int()),
+		Addr:     config.Config.GetRedisSource("default.addr").String(),
+		Password: config.Config.GetRedisSource("default.password").String(),
+		DB:       int(config.Config.GetRedisSource("default.db").Int()),
+		PoolSize: int(config.Config.GetRedisSource("default.poolSize").Int()),
 	}
 	if len(source) > 0 {
 		config = RSource{

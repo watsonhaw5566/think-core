@@ -1,11 +1,11 @@
-package tg
+package think
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/think-go/tg/tgcfg"
-	"github.com/think-go/tg/tglog"
-	"github.com/think-go/tg/tgutl"
+	thinkconfg "github.com/watsonhaw5566/think-core/config"
+	"github.com/watsonhaw5566/think-core/log"
+	thinkutil "github.com/watsonhaw5566/think-core/util"
 	"net/http"
 )
 
@@ -16,7 +16,7 @@ func recoveryMiddleware() HandlerFunc {
 			if err := recover(); err != nil {
 				if e, ok := err.(Exception); ok {
 					jsonStr, _ := json.Marshal(e)
-					tglog.Log().Error(string(jsonStr))
+					log.Log().Error(string(jsonStr))
 					ctx.Fail(e.Message, FailOption{
 						StatusCode: e.StateCode,
 						ErrorCode:  e.ErrorCode,
@@ -34,12 +34,12 @@ func recoveryMiddleware() HandlerFunc {
 func fileServerMiddleware() HandlerFunc {
 	return func(ctx *Context) {
 		// 如果是静态资源路径，使用文件服务器处理请求
-		if tgutl.HasSuffix(ctx.Request.RequestURI) {
-			staticPrefix := tgcfg.Config.Server.StaticPrefix
+		if thinkutil.HasSuffix(ctx.Request.RequestURI) {
+			staticPrefix := thinkconfg.Config.Server.StaticPrefix
 			if staticPrefix != "/" {
 				staticPrefix = "/" + staticPrefix + "/"
 			}
-			http.StripPrefix(staticPrefix, http.FileServer(http.Dir(tgcfg.Config.Server.StaticPath))).ServeHTTP(ctx.Response, ctx.Request)
+			http.StripPrefix(staticPrefix, http.FileServer(http.Dir(thinkconfg.Config.Server.StaticPath))).ServeHTTP(ctx.Response, ctx.Request)
 			return
 		}
 		ctx.Next()

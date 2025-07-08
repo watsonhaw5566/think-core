@@ -1,4 +1,4 @@
-module github.com/think-go/tg
+module github.com/watsonhaw5566/think-core
 
 go 1.23.2
 

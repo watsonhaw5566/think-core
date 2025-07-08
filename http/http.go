@@ -1,4 +1,4 @@
-package tghttp
+package http
 
 import (
 	"bytes"
@@ -13,21 +13,21 @@ import (
 	"time"
 )
 
-type response struct {
+type ThinkResponse struct {
 	resp *http.Response
 }
 
-type httpClient struct {
+type ThinkHttpClient struct {
 	client  http.Client
 	headers map[string]string
 }
 
-func NewClient(minute ...int) *httpClient {
+func NewClient(minute ...int) *ThinkHttpClient {
 	duration := time.Duration(60) * time.Second
 	if len(minute) > 0 {
 		duration = time.Duration(minute[0]) * time.Second
 	}
-	client := &httpClient{
+	client := &ThinkHttpClient{
 		client: http.Client{
 			Transport: &http.Transport{
 				MaxIdleConnsPerHost:   5,                // 每个主机的最大空闲连接数
@@ -44,48 +44,48 @@ func NewClient(minute ...int) *httpClient {
 	return client
 }
 
-func (c *httpClient) SetHeader(header map[string]string) *httpClient {
+func (c *ThinkHttpClient) SetHeader(header map[string]string) *ThinkHttpClient {
 	for key, value := range header {
 		c.headers[key] = value
 	}
 	return c
 }
 
-func (c *httpClient) GET(url string, params ...map[string]interface{}) (*response, error) {
+func (c *ThinkHttpClient) GET(url string, params ...map[string]interface{}) (*ThinkResponse, error) {
 	if len(params) > 0 {
 		url = url + "?" + c.toValues(params[0])
 	}
 	return c.doRequest("GET", url, nil)
 }
 
-func (c *httpClient) POST(url string, params map[string]interface{}) (*response, error) {
+func (c *ThinkHttpClient) POST(url string, params map[string]interface{}) (*ThinkResponse, error) {
 	if c.hasFile(params) {
 		return c.doRequest("POST", url, params)
 	}
 	return c.doRequest("POST", url, params)
 }
 
-func (c *httpClient) PUT(url string, params map[string]interface{}) (*response, error) {
+func (c *ThinkHttpClient) PUT(url string, params map[string]interface{}) (*ThinkResponse, error) {
 	return c.doRequest("PUT", url, params)
 }
 
-func (c *httpClient) DELETE(url string, params map[string]interface{}) (*response, error) {
+func (c *ThinkHttpClient) DELETE(url string, params map[string]interface{}) (*ThinkResponse, error) {
 	return c.doRequest("DELETE", url, params)
 }
 
-func (r *response) ReadAllString() string {
+func (r *ThinkResponse) ReadAllString() string {
 	body, _ := io.ReadAll(r.resp.Body)
 	defer r.resp.Body.Close()
 	return string(body)
 }
 
-func (r *response) ReadAll() []byte {
+func (r *ThinkResponse) ReadAll() []byte {
 	body, _ := io.ReadAll(r.resp.Body)
 	defer r.resp.Body.Close()
 	return body
 }
 
-func (c *httpClient) doRequest(method string, path string, params map[string]interface{}) (*response, error) {
+func (c *ThinkHttpClient) doRequest(method string, path string, params map[string]interface{}) (*ThinkResponse, error) {
 	var reader io.Reader
 	contentType := c.headers["Content-Type"]
 	switch {
@@ -127,10 +127,10 @@ func (c *httpClient) doRequest(method string, path string, params map[string]int
 	if err != nil {
 		return nil, err
 	}
-	return &response{resp: resp}, nil
+	return &ThinkResponse{resp: resp}, nil
 }
 
-func (c *httpClient) writeFormFile(writer *multipart.Writer, key string, file *os.File) error {
+func (c *ThinkHttpClient) writeFormFile(writer *multipart.Writer, key string, file *os.File) error {
 	part, err := writer.CreateFormFile(key, file.Name())
 	if err != nil {
 		return err
@@ -140,7 +140,7 @@ func (c *httpClient) writeFormFile(writer *multipart.Writer, key string, file *o
 	return err
 }
 
-func (c *httpClient) toValues(args map[string]interface{}) string {
+func (c *ThinkHttpClient) toValues(args map[string]interface{}) string {
 	params := url.Values{}
 	for key, value := range args {
 		params.Set(key, fmt.Sprintf("%v", value))
@@ -148,7 +148,7 @@ func (c *httpClient) toValues(args map[string]interface{}) string {
 	return params.Encode()
 }
 
-func (c *httpClient) hasFile(params map[string]interface{}) bool {
+func (c *ThinkHttpClient) hasFile(params map[string]interface{}) bool {
 	for _, v := range params {
 		if _, ok := v.(*os.File); ok {
 			return true

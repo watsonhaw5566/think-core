@@ -1,9 +1,9 @@
-package tgtoken
+package token
 
 import (
 	"encoding/json"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/think-go/tg"
+	"github.com/watsonhaw5566/think-core"
 	"net/http"
 	"strings"
 )
@@ -31,9 +31,9 @@ func CreateJwtToken(data any, option JwtTokenOption) string {
 		option.Algorithm = jwt.SigningMethodHS256
 	}
 	if option.JwtKey == "" {
-		panic(tg.Exception{
+		panic(think.Exception{
 			StateCode: http.StatusInternalServerError,
-			ErrorCode: tg.ErrorCode.EXCEPTION,
+			ErrorCode: think.ErrorCode.EXCEPTION,
 			Message:   "密钥不能为空",
 		})
 	}
@@ -51,9 +51,9 @@ func CreateJwtToken(data any, option JwtTokenOption) string {
 	})
 	token, err := claims.SignedString([]byte(option.JwtKey))
 	if err != nil {
-		panic(tg.Exception{
+		panic(think.Exception{
 			StateCode: http.StatusInternalServerError,
-			ErrorCode: tg.ErrorCode.EXCEPTION,
+			ErrorCode: think.ErrorCode.EXCEPTION,
 			Message:   "Token创建出错",
 			Error:     err,
 		})
@@ -65,9 +65,9 @@ func CreateJwtToken(data any, option JwtTokenOption) string {
 func GetAuthorization(authorization string) string {
 	str := strings.Split(authorization, " ")
 	if len(str) != 2 || str[0] != "Bearer" {
-		panic(tg.Exception{
+		panic(think.Exception{
 			StateCode: http.StatusUnauthorized,
-			ErrorCode: tg.ErrorCode.VALIDATE,
+			ErrorCode: think.ErrorCode.VALIDATE,
 			Message:   "Token格式错误",
 		})
 	}
@@ -82,31 +82,31 @@ func ParseToken(tokenStr string, jwtKey string) string {
 	})
 	if err != nil {
 		if err == jwt.ErrTokenExpired {
-			panic(tg.Exception{
+			panic(think.Exception{
 				StateCode: http.StatusUnauthorized,
-				ErrorCode: tg.ErrorCode.TokenExpire,
+				ErrorCode: think.ErrorCode.TokenExpire,
 				Message:   "Token已过期",
 			})
 		}
-		panic(tg.Exception{
+		panic(think.Exception{
 			StateCode: http.StatusUnauthorized,
-			ErrorCode: tg.ErrorCode.VALIDATE,
+			ErrorCode: think.ErrorCode.VALIDATE,
 			Message:   "Token解析出错",
 			Error:     err,
 		})
 	}
 	if !token.Valid {
-		panic(tg.Exception{
+		panic(think.Exception{
 			StateCode: http.StatusUnauthorized,
-			ErrorCode: tg.ErrorCode.VALIDATE,
+			ErrorCode: think.ErrorCode.VALIDATE,
 			Message:   "无效的Token",
 		})
 	}
 	jsonBytes, err := json.Marshal(claims.Data)
 	if err != nil {
-		panic(tg.Exception{
+		panic(think.Exception{
 			StateCode: http.StatusUnauthorized,
-			ErrorCode: tg.ErrorCode.VALIDATE,
+			ErrorCode: think.ErrorCode.VALIDATE,
 			Message:   "Token转json出错",
 			Error:     err,
 		})

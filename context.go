@@ -1,13 +1,13 @@
-package tg
+package think
 
 import (
 	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"github.com/think-go/tg/tgcfg"
-	"github.com/think-go/tg/tglog"
 	"github.com/tidwall/gjson"
+	"github.com/watsonhaw5566/think-core/config"
+	"github.com/watsonhaw5566/think-core/log"
 	"html/template"
 	"io"
 	"io/ioutil"
@@ -192,7 +192,7 @@ func (ctx *Context) PostForm(key string, defaultFormMaxMemory ...int64) gjson.Re
 	}
 	if err := ctx.Request.ParseMultipartForm(maxMemory); err != nil {
 		if !errors.Is(err, http.ErrNotMultipart) {
-			tglog.Log().Error("MultipartForm异常")
+			log.Log().Error("MultipartForm异常")
 			return gjson.Result{}
 		}
 	}
@@ -200,7 +200,7 @@ func (ctx *Context) PostForm(key string, defaultFormMaxMemory ...int64) gjson.Re
 	if strings.Contains(contentType, "application/json") {
 		body, err := ioutil.ReadAll(ctx.Request.Body)
 		if err != nil {
-			tglog.Log().Error("Body解析失败")
+			log.Log().Error("Body解析失败")
 			return gjson.Result{}
 		}
 		defer ctx.Request.Body.Close()
@@ -234,12 +234,12 @@ func (ctx *Context) FormFile(key string, defaultFormMaxMemory ...int64) *multipa
 	}
 	if err := ctx.Request.ParseMultipartForm(maxMemory); err != nil {
 		if !errors.Is(err, http.ErrNotMultipart) {
-			tglog.Log().Error("FormFiles获取文件失败")
+			log.Log().Error("FormFiles获取文件失败")
 		}
 	}
 	file, header, err := ctx.Request.FormFile(key)
 	if err != nil {
-		tglog.Log().Error(err)
+		log.Log().Error(err)
 		return nil
 	}
 	defer file.Close()
@@ -254,7 +254,7 @@ func (ctx *Context) FormFiles(key string, defaultFormMaxMemory ...int64) []*mult
 	}
 	if err := ctx.Request.ParseMultipartForm(maxMemory); err != nil {
 		if !errors.Is(err, http.ErrNotMultipart) {
-			tglog.Log().Error("FormFiles获取多文件失败")
+			log.Log().Error("FormFiles获取多文件失败")
 			return []*multipart.FileHeader{}
 		}
 	}
@@ -288,7 +288,7 @@ func bindParams(ctx *Context, req any, values url.Values) {
 					case reflect.TypeOf(0):
 						v, err := strconv.Atoi(value[0])
 						if err != nil {
-							tglog.Log().Error(err)
+							log.Log().Error(err)
 						}
 						fieldVal.SetInt(int64(v))
 					case reflect.TypeOf([]int{}):
@@ -296,7 +296,7 @@ func bindParams(ctx *Context, req any, values url.Values) {
 						for i, s := range value {
 							num, err := strconv.Atoi(s)
 							if err != nil {
-								tglog.Log().Error(err)
+								log.Log().Error(err)
 							}
 							intSlice[i] = num
 						}
@@ -391,7 +391,7 @@ func (ctx *Context) View(name string, data any, expression ...string) {
 	if len(expression) > 0 {
 		tpl = expression[0]
 	}
-	tmp, err := tmp.ParseGlob(filepath.Join(tgcfg.Config.Server.TplPath, tpl))
+	tmp, err := tmp.ParseGlob(filepath.Join(config.Config.Server.TplPath, tpl))
 	if err != nil {
 		http.Error(ctx.Response, "服务异常解析失败", http.StatusInternalServerError)
 		return
@@ -405,7 +405,7 @@ func (ctx *Context) View(name string, data any, expression ...string) {
 
 // Download 文件下载
 func (ctx *Context) Download(fileName string) {
-	filePath := filepath.Join(tgcfg.Config.Server.StaticPath, fileName)
+	filePath := filepath.Join(config.Config.Server.StaticPath, fileName)
 	ctx.Response.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(filePath))
 	http.ServeFile(ctx.Response, ctx.Request, filePath)
 }

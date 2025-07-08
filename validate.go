@@ -1,4 +1,4 @@
-package tg
+package think
 
 import (
 	"github.com/go-playground/locales/en"
@@ -6,7 +6,7 @@ import (
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
 	zhTrans "github.com/go-playground/validator/v10/translations/zh"
-	"github.com/think-go/tg/tglog"
+	"github.com/think-go/tg/log"
 	"net/http"
 	"reflect"
 )
@@ -26,7 +26,7 @@ func CheckParams(req any) {
 	trans, _ := uni.GetTranslator("zh")
 	err := zhTrans.RegisterDefaultTranslations(validate, trans)
 	if err != nil {
-		tglog.Log().Error(err)
+		log.Log().Error(err)
 	}
 	if err = validate.Struct(req); err != nil {
 		errs := err.(validator.ValidationErrors)

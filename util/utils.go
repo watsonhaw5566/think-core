@@ -1,4 +1,4 @@
-package tgutl
+package util
 
 import (
 	"crypto/aes"
@@ -8,7 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"github.com/think-go/tg/tgcfg"
+	"github.com/watsonhaw5566/think-core/config"
 	"io"
 	"math/rand"
 	"strings"
@@ -17,7 +17,7 @@ import (
 
 // HasSuffix 判断路由后缀是否在文件类型组里
 func HasSuffix(url string) bool {
-	staticPrefix := strings.Split(tgcfg.Config.Server.StaticSuffix, ",")
+	staticPrefix := strings.Split(config.Config.Server.StaticSuffix, ",")
 	for _, prefix := range staticPrefix {
 		if strings.HasSuffix(url, "."+prefix) {
 			return true
