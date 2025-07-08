@@ -103,9 +103,8 @@ func (engine *Engine) Run() {
 
 	// 异步启动服务
 	go func() {
-		color.Yellow("[Think GO]服务正在启动...")
 		if err := cmd.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			color.Red("[Think GO]服务启动失败")
+			color.Red("[ThinkGO] 服务启动失败")
 			return
 		}
 	}()
@@ -119,9 +118,8 @@ func (engine *Engine) Run() {
 			if err == nil {
 				conn.Close()
 				fmt.Print(strings.TrimPrefix(StartText, "\n"))
-				color.Green("[Think GO]服务启动成功")
-				color.Blue(fmt.Sprintf("[Think GO]服务地址: http://127.0.0.1%s", config.Config.Server.Address))
-				color.Blue(fmt.Sprintf("[Think GO]接口文档地址: http://127.0.0.1%s/api.json", config.Config.Server.Address))
+				color.Blue(fmt.Sprintf("[ThinkGO] 服务地址: http://127.0.0.1%s", config.Config.Server.Address))
+				color.Blue(fmt.Sprintf("[ThinkGO] 接口文档地址: http://127.0.0.1%s/api.json", config.Config.Server.Address))
 				done <- true
 				break
 			}
@@ -133,7 +131,7 @@ func (engine *Engine) Run() {
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):
-		color.Red("[Think GO]服务启动超时,请手动重启")
+		color.Red("[ThinkGO] 服务启动超时,请手动重启")
 		return
 	}
 
@@ -144,8 +142,8 @@ func (engine *Engine) Run() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := cmd.Shutdown(ctx); err != nil {
-		color.Red("[Think GO]服务未能正常关闭")
+		color.Red("[ThinkGO] 服务未能正常关闭")
 		return
 	}
-	color.Green("[Think GO]服务正常关闭")
+	color.Green("[ThinkGO] 服务正常关闭")
 }
