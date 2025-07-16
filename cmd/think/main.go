@@ -6,7 +6,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/iancoleman/strcase"
 	"github.com/spf13/cobra"
-	"github.com/watsonhaw5566/think-core"
+	"github.com/watsonhaw5566/thinko"
 	"go/format"
 	"os"
 	"os/exec"
@@ -408,8 +408,8 @@ func versionCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			goVersion := runtime.Version()
 			fmt.Printf("当前环境GO版本: %s\n", goVersion)
-			fmt.Printf("当前环境Think CLI版本: %s\n", "v1.0.0")
-			fmt.Printf("当前项目 ThinkGO 版本: %s\n", "v1.0.0")
+			fmt.Printf("当前环境 Think CLI版本: %s\n", "v1.0.0")
+			fmt.Printf("当前项目 Think GO 版本: %s\n", "v1.0.0")
 		},
 	}
 }

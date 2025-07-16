@@ -6,7 +6,7 @@ import (
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
 	zhTrans "github.com/go-playground/validator/v10/translations/zh"
-	"github.com/watsonhaw5566/think-core/log"
+	"github.com/watsonhaw5566/thinko/log"
 	"net/http"
 	"reflect"
 )

@@ -3,9 +3,9 @@ package think
 import (
 	"encoding/json"
 	"fmt"
-	thinkconfg "github.com/watsonhaw5566/think-core/config"
-	"github.com/watsonhaw5566/think-core/log"
-	thinkutil "github.com/watsonhaw5566/think-core/util"
+	tkConfg "github.com/watsonhaw5566/thinko/config"
+	"github.com/watsonhaw5566/thinko/log"
+	tkUtil "github.com/watsonhaw5566/thinko/util"
 	"net/http"
 )
 
@@ -34,12 +34,12 @@ func recoveryMiddleware() HandlerFunc {
 func fileServerMiddleware() HandlerFunc {
 	return func(ctx *Context) {
 		// 如果是静态资源路径，使用文件服务器处理请求
-		if thinkutil.HasSuffix(ctx.Request.RequestURI) {
-			staticPrefix := thinkconfg.Config.Server.StaticPrefix
+		if tkUtil.HasSuffix(ctx.Request.RequestURI) {
+			staticPrefix := tkConfg.Config.Server.StaticPrefix
 			if staticPrefix != "/" {
 				staticPrefix = "/" + staticPrefix + "/"
 			}
-			http.StripPrefix(staticPrefix, http.FileServer(http.Dir(thinkconfg.Config.Server.StaticPath))).ServeHTTP(ctx.Response, ctx.Request)
+			http.StripPrefix(staticPrefix, http.FileServer(http.Dir(tkConfg.Config.Server.StaticPath))).ServeHTTP(ctx.Response, ctx.Request)
 			return
 		}
 		ctx.Next()

@@ -1,6 +1,8 @@
 package service
 
-import "github.com/watsonhaw5566/think-core"
+import (
+	"github.com/watsonhaw5566/thinko"
+)
 
 // bindControllerFunc 绑定路由函数
 type bindControllerFunc func(*think.Engine)

@@ -1,4 +1,4 @@
-module github.com/watsonhaw5566/think-core
+module github.com/watsonhaw5566/thinko
 
 go 1.23.2
 

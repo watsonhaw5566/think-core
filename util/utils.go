@@ -8,7 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"github.com/watsonhaw5566/think-core/config"
+	"github.com/watsonhaw5566/thinko/config"
 	"io"
 	"math/rand"
 	"strings"
@@ -27,21 +27,19 @@ func HasSuffix(url string) bool {
 }
 
 // GenerateSMSCode 生成短信验证码
-func GenerateSMSCode(length int) int {
-	rand.Seed(time.Now().UnixNano()) // 初始化随机数生成器
-	code := 0
-	multiplier := 1
+func GenerateSMSCode(length int) string {
+	rand.New(rand.NewSource(time.Now().UnixNano())) // 初始化随机数生成器
+	code := ""
 	for i := 0; i < length; i++ {
 		digit := rand.Intn(10) // 生成0到9的数字
-		code += digit * multiplier
-		multiplier *= 10
+		code += fmt.Sprintf("%d", digit)
 	}
 	return code
 }
 
 // GetRandomNumber 生成m-n之间的随机整数
 func GetRandomNumber(m int, n int) (res int) {
-	rand.Seed(time.Now().UnixNano())
+	rand.New(rand.NewSource(time.Now().UnixNano()))
 	res = rand.Intn(n) + m
 	return
 }
@@ -52,7 +50,7 @@ func GenerateRandomString(length int) string {
 	charset := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 	// 设置随机数种子
-	rand.Seed(time.Now().UnixNano())
+	rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	// 随机打乱切片
 	chars := []byte(charset)

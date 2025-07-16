@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/redis/go-redis/v9"
-	thinkconfig "github.com/watsonhaw5566/think-core/config"
+	tkConfig "github.com/watsonhaw5566/thinko/config"
 	"net/http"
 	"sync"
 	"time"
@@ -28,10 +28,10 @@ type TRdb struct {
 
 func RDb(source ...RSource) *TRdb {
 	config := RSource{
-		Addr:     thinkconfig.Config.GetRedisSource("default.addr").String(),
-		Password: thinkconfig.Config.GetRedisSource("default.password").String(),
-		DB:       int(thinkconfig.Config.GetRedisSource("default.db").Int()),
-		PoolSize: int(thinkconfig.Config.GetRedisSource("default.poolSize").Int()),
+		Addr:     tkConfig.Config.GetRedisSource("default.addr").String(),
+		Password: tkConfig.Config.GetRedisSource("default.password").String(),
+		DB:       int(tkConfig.Config.GetRedisSource("default.db").Int()),
+		PoolSize: int(tkConfig.Config.GetRedisSource("default.poolSize").Int()),
 	}
 	if len(source) > 0 {
 		config = RSource{

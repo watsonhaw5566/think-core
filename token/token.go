@@ -3,7 +3,7 @@ package token
 import (
 	"encoding/json"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/watsonhaw5566/think-core"
+	"github.com/watsonhaw5566/thinko"
 	"net/http"
 	"strings"
 )
@@ -54,7 +54,7 @@ func CreateJwtToken(data any, option JwtTokenOption) string {
 		panic(think.Exception{
 			StateCode: http.StatusInternalServerError,
 			ErrorCode: think.ErrorCode.EXCEPTION,
-			Message:   "Token创建出错",
+			Message:   "Token 创建出错",
 			Error:     err,
 		})
 	}
@@ -68,7 +68,7 @@ func GetAuthorization(authorization string) string {
 		panic(think.Exception{
 			StateCode: http.StatusUnauthorized,
 			ErrorCode: think.ErrorCode.VALIDATE,
-			Message:   "Token格式错误",
+			Message:   "Token 格式错误",
 		})
 	}
 	return str[1]
@@ -85,13 +85,13 @@ func ParseToken(tokenStr string, jwtKey string) string {
 			panic(think.Exception{
 				StateCode: http.StatusUnauthorized,
 				ErrorCode: think.ErrorCode.TokenExpire,
-				Message:   "Token已过期",
+				Message:   "Token 已过期",
 			})
 		}
 		panic(think.Exception{
 			StateCode: http.StatusUnauthorized,
 			ErrorCode: think.ErrorCode.VALIDATE,
-			Message:   "Token解析出错",
+			Message:   "Token 解析出错",
 			Error:     err,
 		})
 	}
@@ -99,7 +99,7 @@ func ParseToken(tokenStr string, jwtKey string) string {
 		panic(think.Exception{
 			StateCode: http.StatusUnauthorized,
 			ErrorCode: think.ErrorCode.VALIDATE,
-			Message:   "无效的Token",
+			Message:   "无效 Token",
 		})
 	}
 	jsonBytes, err := json.Marshal(claims.Data)
@@ -107,7 +107,7 @@ func ParseToken(tokenStr string, jwtKey string) string {
 		panic(think.Exception{
 			StateCode: http.StatusUnauthorized,
 			ErrorCode: think.ErrorCode.VALIDATE,
-			Message:   "Token转json出错",
+			Message:   "Token 转换 json 出错",
 			Error:     err,
 		})
 	}

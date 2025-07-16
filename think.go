@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/fatih/color"
-	"github.com/watsonhaw5566/think-core/config"
-	"github.com/watsonhaw5566/think-core/util"
+	"github.com/watsonhaw5566/thinko/config"
+	"github.com/watsonhaw5566/thinko/util"
 	"net"
 	"net/http"
 	"os"
@@ -16,12 +16,12 @@ import (
 )
 
 const StartText = `
-  _______ _     _       _     _____  ____  
- |__   __| |   (_)     | |   / ____|/ __ \ 
-    | |  | |__  _ _ __ | | _| |  __| |  | |
-    | |  | '_ \| | '_ \| |/ / | |_ | |  | |
-    | |  | | | | | | | |   <| |__| | |__| |
-    |_|  |_| |_|_|_| |_|_|\_\\_____|\____/
+  _______ _     _       _         
+ |__   __| |   (_)     | |        
+    | |  | |__  _ _ __ | | _____  
+    | |  | '_ \| | '_ \| |/ / _ \ 
+    | |  | | | | | | | |   < (_) |
+    |_|  |_| |_|_|_| |_|_|\_\___/
 `
 
 // Engine 定义引擎结构体
@@ -104,7 +104,7 @@ func (engine *Engine) Run() {
 	// 异步启动服务
 	go func() {
 		if err := cmd.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			color.Red("[ThinkGO] 服务启动失败")
+			color.Red("[Thinko] 服务启动失败")
 			return
 		}
 	}()
@@ -118,8 +118,8 @@ func (engine *Engine) Run() {
 			if err == nil {
 				conn.Close()
 				fmt.Print(strings.TrimPrefix(StartText, "\n"))
-				color.Blue(fmt.Sprintf("[ThinkGO] 服务地址: http://127.0.0.1%s", config.Config.Server.Address))
-				color.Blue(fmt.Sprintf("[ThinkGO] 接口文档地址: http://127.0.0.1%s/api.json", config.Config.Server.Address))
+				color.Blue(fmt.Sprintf("[Thinko] 服务地址: http://127.0.0.1%s", config.Config.Server.Address))
+				color.Blue(fmt.Sprintf("[Thinko] 接口文档地址: http://127.0.0.1%s/api.json", config.Config.Server.Address))
 				done <- true
 				break
 			}
@@ -131,7 +131,7 @@ func (engine *Engine) Run() {
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):
-		color.Red("[ThinkGO] 服务启动超时,请手动重启")
+		color.Red("[Thinko] 服务启动超时,请手动重启")
 		return
 	}
 
@@ -142,8 +142,8 @@ func (engine *Engine) Run() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := cmd.Shutdown(ctx); err != nil {
-		color.Red("[ThinkGO] 服务未能正常关闭")
+		color.Red("[Thinko] 服务未能正常关闭")
 		return
 	}
-	color.Green("[ThinkGO] 服务正常关闭")
+	color.Green("[Thinko] 服务正常关闭")
 }

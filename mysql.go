@@ -6,8 +6,8 @@ import (
 	"github.com/fatih/color"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	thinkconfig "github.com/watsonhaw5566/think-core/config"
-	thinkutil "github.com/watsonhaw5566/think-core/util"
+	tkConfig "github.com/watsonhaw5566/thinko/config"
+	tkUtil "github.com/watsonhaw5566/thinko/util"
 	"net/http"
 	"reflect"
 	"strings"
@@ -108,15 +108,15 @@ type Begin struct {
 // 创建连接池
 func createInstance(source ...Source) (instance *sqlx.DB, config Source) {
 	config = Source{
-		Link:        thinkconfig.Config.GetMySqlSource("default.link").String(),
-		Debug:       thinkconfig.Config.GetMySqlSource("default.debug").Bool(),
-		CreateTime:  thinkconfig.Config.GetMySqlSource("default.createTime").String(),
-		UpdateTime:  thinkconfig.Config.GetMySqlSource("default.updateTime").String(),
-		DeleteTime:  thinkconfig.Config.GetMySqlSource("default.deleteTime").String(),
-		MaxOpen:     int(thinkconfig.Config.GetMySqlSource("default.maxOpen").Int()),
-		MaxIdle:     int(thinkconfig.Config.GetMySqlSource("default.maxIdle").Int()),
-		MaxIdleTime: int(thinkconfig.Config.GetMySqlSource("default.maxIdleTime").Int()),
-		MaxLifeTime: int(thinkconfig.Config.GetMySqlSource("default.maxLifeTime").Int()),
+		Link:        tkConfig.Config.GetMySqlSource("default.link").String(),
+		Debug:       tkConfig.Config.GetMySqlSource("default.debug").Bool(),
+		CreateTime:  tkConfig.Config.GetMySqlSource("default.createTime").String(),
+		UpdateTime:  tkConfig.Config.GetMySqlSource("default.updateTime").String(),
+		DeleteTime:  tkConfig.Config.GetMySqlSource("default.deleteTime").String(),
+		MaxOpen:     int(tkConfig.Config.GetMySqlSource("default.maxOpen").Int()),
+		MaxIdle:     int(tkConfig.Config.GetMySqlSource("default.maxIdle").Int()),
+		MaxIdleTime: int(tkConfig.Config.GetMySqlSource("default.maxIdleTime").Int()),
+		MaxLifeTime: int(tkConfig.Config.GetMySqlSource("default.maxLifeTime").Int()),
 	}
 	if len(source) > 0 {
 		config = Source{
@@ -209,28 +209,28 @@ func (db *DB) Field(fields string, distinct ...bool) *DB {
 	return db
 }
 
-// Where 指定查询条件, tg.Db().Where("id", "=", 1)
+// Where 指定查询条件, think.Db().Where("id", "=", 1)
 func (db *DB) Where(field string, condition string, value interface{}) *DB {
 	db.whereStr += fmt.Sprintf("WHERE %s %s ?", field, condition)
 	db.values = append(db.values, value)
 	return db
 }
 
-// WhereAnd 指定多查询条件,前面必须有Where, tg.Db("user").Where("age", "=", 18).WhereAnd("gender", "=", 1)
+// WhereAnd 指定多查询条件,前面必须有Where, think.Db("user").Where("age", "=", 18).WhereAnd("gender", "=", 1)
 func (db *DB) WhereAnd(field string, condition string, value interface{}) *DB {
 	db.whereStr += fmt.Sprintf(" AND %s %s ?", field, condition)
 	db.values = append(db.values, value)
 	return db
 }
 
-// WhereOr 指定多查询条件,前面必须有Where, tg.Db("user").Where("age", "=", 18).WhereOr("age", "=", 19)
+// WhereOr 指定多查询条件,前面必须有Where, think.Db("user").Where("age", "=", 18).WhereOr("age", "=", 19)
 func (db *DB) WhereOr(field string, condition string, value interface{}) *DB {
 	db.whereStr += fmt.Sprintf(" OR %s %s ?", field, condition)
 	db.values = append(db.values, value)
 	return db
 }
 
-// WhereIn 包含查询, tg.Db("user").WhereIn("id", []interface{1, 2, 3})
+// WhereIn 包含查询, think.Db("user").WhereIn("id", []interface{1, 2, 3})
 func (db *DB) WhereIn(field string, value []interface{}) *DB {
 	str := "WHERE"
 	if strings.Contains(db.whereStr, "WHERE") {
@@ -242,7 +242,7 @@ func (db *DB) WhereIn(field string, value []interface{}) *DB {
 	return db
 }
 
-// WhereLike 模糊查询, tg.Db("user").WhereLike("name", "%建国%")
+// WhereLike 模糊查询, think.Db("user").WhereLike("name", "%建国%")
 func (db *DB) WhereLike(field string, value interface{}) *DB {
 	str := "WHERE"
 	if strings.Contains(db.whereStr, "WHERE") {
@@ -253,7 +253,7 @@ func (db *DB) WhereLike(field string, value interface{}) *DB {
 	return db
 }
 
-// WhereBetween 区间查询, tg.Db("user").WhereBetween("age", 18, 20)
+// WhereBetween 区间查询, think.Db("user").WhereBetween("age", 18, 20)
 func (db *DB) WhereBetween(field string, start interface{}, end interface{}) *DB {
 	str := "WHERE"
 	if strings.Contains(db.whereStr, "WHERE") {
@@ -264,7 +264,7 @@ func (db *DB) WhereBetween(field string, start interface{}, end interface{}) *DB
 	return db
 }
 
-// WhereIsNull 为NULL数据, tg.Db("user").WhereIsNull("name")
+// WhereIsNull 为NULL数据, think.Db("user").WhereIsNull("name")
 func (db *DB) WhereIsNull(field string) *DB {
 	str := "WHERE"
 	if strings.Contains(db.whereStr, "WHERE") {
@@ -274,7 +274,7 @@ func (db *DB) WhereIsNull(field string) *DB {
 	return db
 }
 
-// WhereIsNotNull 不为NULL数据, tg.Db("user").WhereIsNotNull("name")
+// WhereIsNotNull 不为NULL数据, think.Db("user").WhereIsNotNull("name")
 func (db *DB) WhereIsNotNull(field string) *DB {
 	str := "WHERE"
 	if strings.Contains(db.whereStr, "WHERE") {
@@ -284,13 +284,13 @@ func (db *DB) WhereIsNotNull(field string) *DB {
 	return db
 }
 
-// Limit 限制查询条数, tg.Db("user").Limit(10).Select(&user)
+// Limit 限制查询条数, think.Db("user").Limit(10).Select(&user)
 func (db *DB) Limit(num int) *DB {
 	db.whereStr += fmt.Sprintf(" LIMIT %d", num)
 	return db
 }
 
-// Order 排序, tg.Db("user").Order("age", "ASC").Select(&user)
+// Order 排序, think.Db("user").Order("age", "ASC").Select(&user)
 func (db *DB) Order(field string, sort ...string) *DB {
 	sortStr := "DESC"
 	if len(sort) > 0 {
@@ -300,19 +300,19 @@ func (db *DB) Order(field string, sort ...string) *DB {
 	return db
 }
 
-// Page 分页查询, tg.Db("user").Page(1, 10).Select(&user)
+// Page 分页查询, think.Db("user").Page(1, 10).Select(&user)
 func (db *DB) Page(current int, size int) *DB {
 	db.whereStr += fmt.Sprintf(" LIMIT %d, %d", current-1, size)
 	return db
 }
 
-// Group 分组查询, tg.Db("user").Field("id, max(score)").Group("id").Select(&user)
+// Group 分组查询, think.Db("user").Field("id, max(score)").Group("id").Select(&user)
 func (db *DB) Group(field string) *DB {
 	db.whereStr += fmt.Sprintf(" GROUP BY %s", field)
 	return db
 }
 
-// Join 连表查询, tg.Db('user').Join("role", "user.id = role.user_id").Where("user.id", "=", 1).Select(&user)
+// Join 连表查询, think.Db('user').Join("role", "user.id = role.user_id").Where("user.id", "=", 1).Select(&user)
 // INNER: 如果表中有至少一个匹配，则返回行
 // LEFT: 即使右表中没有匹配，也从左表返回所有的行
 // RIGHT: 即使左表中没有匹配，也从右表返回所有的行
@@ -338,13 +338,13 @@ func (db *DB) Lock(lockStr ...string) *DB {
 	return db
 }
 
-// InsertAll 添加多条数据, tg.Db("user").InsertAll(user)
+// InsertAll 添加多条数据, think.Db("user").InsertAll(user)
 func (db *DB) InsertAll(data []interface{}, option ...InsertAllOption) (err error) {
 	config := InsertAllOption{
-		Debug:      &db.config.Debug,         // 是否打印最终执行的SQL语句，默认不打印
-		AutoTime:   thinkutil.PtrBool(false), // 是否开启自动时间戳，默认不开启
-		CreateTime: db.config.CreateTime,     // 更新时间字段名，默认 create_time
-		UpdateTime: db.config.UpdateTime,     // 更新时间字段名，默认 update_time
+		Debug:      &db.config.Debug,      // 是否打印最终执行的SQL语句，默认不打印
+		AutoTime:   tkUtil.PtrBool(false), // 是否开启自动时间戳，默认不开启
+		CreateTime: db.config.CreateTime,  // 更新时间字段名，默认 create_time
+		UpdateTime: db.config.UpdateTime,  // 更新时间字段名，默认 update_time
 	}
 	if len(option) > 0 {
 		if option[0].Debug != nil {
@@ -441,19 +441,19 @@ func (db *DB) InsertAll(data []interface{}, option ...InsertAllOption) (err erro
 
 	// DEBUG sql语句打印
 	if *config.Debug {
-		fmt.Println("[SQL] " + thinkutil.SqlFormat(sql, db.values))
+		fmt.Println("[SQL] " + tkUtil.SqlFormat(sql, db.values))
 	}
 
 	return nil
 }
 
-// Insert 添加数据, tg.Db("user").Insert(user)
+// Insert 添加数据, think.Db("user").Insert(user)
 func (db *DB) Insert(data interface{}, option ...InsertOption) (insertId int64, err error) {
 	config := InsertOption{
-		Debug:      &db.config.Debug,         // 是否打印最终执行的SQL语句，默认不打印
-		AutoTime:   thinkutil.PtrBool(false), // 是否开启自动时间戳，默认不开启
-		CreateTime: db.config.CreateTime,     // 更新时间字段名，默认 create_time
-		UpdateTime: db.config.UpdateTime,     // 更新时间字段名，默认 update_time
+		Debug:      &db.config.Debug,      // 是否打印最终执行的SQL语句，默认不打印
+		AutoTime:   tkUtil.PtrBool(false), // 是否开启自动时间戳，默认不开启
+		CreateTime: db.config.CreateTime,  // 更新时间字段名，默认 create_time
+		UpdateTime: db.config.UpdateTime,  // 更新时间字段名，默认 update_time
 	}
 	if len(option) > 0 {
 		if option[0].Debug != nil {
@@ -532,19 +532,19 @@ func (db *DB) Insert(data interface{}, option ...InsertOption) (insertId int64, 
 
 	// DEBUG sql语句打印
 	if *config.Debug {
-		fmt.Println("[SQL] " + thinkutil.SqlFormat(sql, db.values))
+		fmt.Println("[SQL] " + tkUtil.SqlFormat(sql, db.values))
 	}
 
 	return res.LastInsertId()
 }
 
-// Update 更新数据, tg.Db("user").Where("id", "=", 1).Update(user)
+// Update 更新数据, think.Db("user").Where("id", "=", 1).Update(user)
 func (db *DB) Update(data any, option ...UpdateOption) (err error) {
 	config := UpdateOption{
-		Debug:      &db.config.Debug,         // 是否打印最终执行的SQL语句，默认不打印
-		AutoTime:   thinkutil.PtrBool(false), // 是否开启自动时间戳，默认不开启
-		UpdateTime: db.config.UpdateTime,     // 更新时间字段名，默认 update_time
-		AllProtect: thinkutil.PtrBool(true),  // 全量更新保护，默认开启，防止忘记写WHERE条件误更新所有数据
+		Debug:      &db.config.Debug,      // 是否打印最终执行的SQL语句，默认不打印
+		AutoTime:   tkUtil.PtrBool(false), // 是否开启自动时间戳，默认不开启
+		UpdateTime: db.config.UpdateTime,  // 更新时间字段名，默认 update_time
+		AllProtect: tkUtil.PtrBool(true),  // 全量更新保护，默认开启，防止忘记写WHERE条件误更新所有数据
 	}
 	if len(option) > 0 {
 		if option[0].Debug != nil {
@@ -617,19 +617,19 @@ func (db *DB) Update(data any, option ...UpdateOption) (err error) {
 
 	// DEBUG sql语句打印
 	if *config.Debug {
-		fmt.Println("[SQL] " + thinkutil.SqlFormat(sql, db.values))
+		fmt.Println("[SQL] " + tkUtil.SqlFormat(sql, db.values))
 	}
 
 	return nil
 }
 
-// Decr 以某个字段递减, tg.Db("user").Where("id", "=", 1).Decr("score", 1)
+// Decr 以某个字段递减, think.Db("user").Where("id", "=", 1).Decr("score", 1)
 func (db *DB) Decr(field string, num int, option ...DecrOption) (err error) {
 	config := DecrOption{
-		Debug:      &db.config.Debug,         // 是否打印最终执行的SQL语句，默认不打印
-		AutoTime:   thinkutil.PtrBool(false), // 是否开启自动时间戳，默认不开启
-		UpdateTime: db.config.UpdateTime,     // 更新时间字段名，默认 update_time
-		AllProtect: thinkutil.PtrBool(true),  // 全量更新保护，默认开启，防止忘记写WHERE条件误更新所有数据
+		Debug:      &db.config.Debug,      // 是否打印最终执行的SQL语句，默认不打印
+		AutoTime:   tkUtil.PtrBool(false), // 是否开启自动时间戳，默认不开启
+		UpdateTime: db.config.UpdateTime,  // 更新时间字段名，默认 update_time
+		AllProtect: tkUtil.PtrBool(true),  // 全量更新保护，默认开启，防止忘记写WHERE条件误更新所有数据
 	}
 	if len(option) > 0 {
 		if option[0].Debug != nil {
@@ -678,18 +678,18 @@ func (db *DB) Decr(field string, num int, option ...DecrOption) (err error) {
 
 	// DEBUG sql语句打印
 	if *config.Debug {
-		fmt.Println("[SQL] " + thinkutil.SqlFormat(sql, db.values))
+		fmt.Println("[SQL] " + tkUtil.SqlFormat(sql, db.values))
 	}
 	return nil
 }
 
-// Incr 以某个字段递增, tg.Db("user").Where("id", "=", 1).Incr("score", 1)
+// Incr 以某个字段递增, think.Db("user").Where("id", "=", 1).Incr("score", 1)
 func (db *DB) Incr(field string, num int, option ...IncrOption) (err error) {
 	config := DecrOption{
-		Debug:      &db.config.Debug,         // 是否打印最终执行的SQL语句，默认不打印
-		AutoTime:   thinkutil.PtrBool(false), // 是否开启自动时间戳，默认不开启
-		UpdateTime: db.config.UpdateTime,     // 更新时间字段名，默认 update_time
-		AllProtect: thinkutil.PtrBool(true),  // 全量更新保护，默认开启，防止忘记写WHERE条件误更新所有数据
+		Debug:      &db.config.Debug,      // 是否打印最终执行的SQL语句，默认不打印
+		AutoTime:   tkUtil.PtrBool(false), // 是否开启自动时间戳，默认不开启
+		UpdateTime: db.config.UpdateTime,  // 更新时间字段名，默认 update_time
+		AllProtect: tkUtil.PtrBool(true),  // 全量更新保护，默认开启，防止忘记写WHERE条件误更新所有数据
 	}
 	if len(option) > 0 {
 		if option[0].Debug != nil {
@@ -738,7 +738,7 @@ func (db *DB) Incr(field string, num int, option ...IncrOption) (err error) {
 
 	// DEBUG sql语句打印
 	if *config.Debug {
-		fmt.Println("[SQL] " + thinkutil.SqlFormat(sql, db.values))
+		fmt.Println("[SQL] " + tkUtil.SqlFormat(sql, db.values))
 	}
 	return nil
 }
@@ -746,10 +746,10 @@ func (db *DB) Incr(field string, num int, option ...IncrOption) (err error) {
 // Delete 删除数据
 func (db *DB) Delete(option ...DeleteOption) (err error) {
 	config := DeleteOption{
-		IsDeleteFlag:  thinkutil.PtrBool(true), // 是否是软删除，默认是
-		Debug:         &db.config.Debug,        // 是否打印最终执行的SQL语句，默认不打印
-		DeleteTime:    db.config.DeleteTime,    // 删除时间字段名，默认 delete_time
-		DeleteProtect: thinkutil.PtrBool(true), // 删除保护，默认开启，防止忘记写WHERE条件误删除所有数据，只争对物理删除有效
+		IsDeleteFlag:  tkUtil.PtrBool(true), // 是否是软删除，默认是
+		Debug:         &db.config.Debug,     // 是否打印最终执行的SQL语句，默认不打印
+		DeleteTime:    db.config.DeleteTime, // 删除时间字段名，默认 delete_time
+		DeleteProtect: tkUtil.PtrBool(true), // 删除保护，默认开启，防止忘记写WHERE条件误删除所有数据，只争对物理删除有效
 	}
 	if len(option) > 0 {
 		if option[0].IsDeleteFlag != nil {
@@ -800,12 +800,12 @@ func (db *DB) Delete(option ...DeleteOption) (err error) {
 
 	// DEBUG sql语句打印
 	if *config.Debug {
-		fmt.Println("[SQL] " + thinkutil.SqlFormat(sql, db.values))
+		fmt.Println("[SQL] " + tkUtil.SqlFormat(sql, db.values))
 	}
 	return nil
 }
 
-// ALL 查询包含软删除的数据, tg.Db("user").ALL().Select(&user)
+// ALL 查询包含软删除的数据, think.Db("user").ALL().Select(&user)
 func (db *DB) ALL(deleteTime ...string) *DB {
 	delTime := db.config.DeleteTime
 	if len(deleteTime) > 0 {
@@ -815,7 +815,7 @@ func (db *DB) ALL(deleteTime ...string) *DB {
 	return db
 }
 
-// Count 查询数量, tg.Db("user").Count()
+// Count 查询数量, think.Db("user").Count()
 func (db *DB) Count(option ...CountOption) (count int, err error) {
 	config := CountOption{
 		Debug:      &db.config.Debug,
@@ -852,12 +852,12 @@ func (db *DB) Count(option ...CountOption) (count int, err error) {
 
 	// DEBUG sql语句打印
 	if *config.Debug {
-		fmt.Println("[SQL] " + thinkutil.SqlFormat(sql, db.values))
+		fmt.Println("[SQL] " + tkUtil.SqlFormat(sql, db.values))
 	}
 	return
 }
 
-// FindOne 查询一条数据, tg.Db("user").Where("age", ">", 18).FindOne(&user)
+// FindOne 查询一条数据, think.Db("user").Where("age", ">", 18).FindOne(&user)
 func (db *DB) FindOne(scan any, option ...FindOneOption) (err error) {
 	config := FindOneOption{
 		Debug:      &db.config.Debug,
@@ -904,12 +904,12 @@ func (db *DB) FindOne(scan any, option ...FindOneOption) (err error) {
 
 	// DEBUG sql语句打印
 	if *config.Debug {
-		fmt.Println("[SQL] " + thinkutil.SqlFormat(sql, db.values))
+		fmt.Println("[SQL] " + tkUtil.SqlFormat(sql, db.values))
 	}
 	return nil
 }
 
-// Select 查询多条数据, tg.Db("user").Where("age", ">", 18).Select(&user)
+// Select 查询多条数据, think.Db("user").Where("age", ">", 18).Select(&user)
 func (db *DB) Select(scan any, option ...SelectOption) (err error) {
 	config := SelectOption{
 		Debug:      &db.config.Debug,
@@ -956,7 +956,7 @@ func (db *DB) Select(scan any, option ...SelectOption) (err error) {
 
 	// DEBUG sql语句打印
 	if *config.Debug {
-		fmt.Println("[SQL] " + thinkutil.SqlFormat(sql, db.values))
+		fmt.Println("[SQL] " + tkUtil.SqlFormat(sql, db.values))
 	}
 	return nil
 }
