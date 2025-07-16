@@ -1,4 +1,4 @@
-package think
+package thinko
 
 import (
 	"errors"

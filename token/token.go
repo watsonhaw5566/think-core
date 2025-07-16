@@ -31,9 +31,9 @@ func CreateJwtToken(data any, option JwtTokenOption) string {
 		option.Algorithm = jwt.SigningMethodHS256
 	}
 	if option.JwtKey == "" {
-		panic(think.Exception{
+		panic(thinko.Exception{
 			StateCode: http.StatusInternalServerError,
-			ErrorCode: think.ErrorCode.EXCEPTION,
+			ErrorCode: thinko.ErrorCode.EXCEPTION,
 			Message:   "密钥不能为空",
 		})
 	}
@@ -51,9 +51,9 @@ func CreateJwtToken(data any, option JwtTokenOption) string {
 	})
 	token, err := claims.SignedString([]byte(option.JwtKey))
 	if err != nil {
-		panic(think.Exception{
+		panic(thinko.Exception{
 			StateCode: http.StatusInternalServerError,
-			ErrorCode: think.ErrorCode.EXCEPTION,
+			ErrorCode: thinko.ErrorCode.EXCEPTION,
 			Message:   "Token 创建出错",
 			Error:     err,
 		})
@@ -65,9 +65,9 @@ func CreateJwtToken(data any, option JwtTokenOption) string {
 func GetAuthorization(authorization string) string {
 	str := strings.Split(authorization, " ")
 	if len(str) != 2 || str[0] != "Bearer" {
-		panic(think.Exception{
+		panic(thinko.Exception{
 			StateCode: http.StatusUnauthorized,
-			ErrorCode: think.ErrorCode.VALIDATE,
+			ErrorCode: thinko.ErrorCode.VALIDATE,
 			Message:   "Token 格式错误",
 		})
 	}
@@ -82,31 +82,31 @@ func ParseToken(tokenStr string, jwtKey string) string {
 	})
 	if err != nil {
 		if err == jwt.ErrTokenExpired {
-			panic(think.Exception{
+			panic(thinko.Exception{
 				StateCode: http.StatusUnauthorized,
-				ErrorCode: think.ErrorCode.TokenExpire,
+				ErrorCode: thinko.ErrorCode.TokenExpire,
 				Message:   "Token 已过期",
 			})
 		}
-		panic(think.Exception{
+		panic(thinko.Exception{
 			StateCode: http.StatusUnauthorized,
-			ErrorCode: think.ErrorCode.VALIDATE,
+			ErrorCode: thinko.ErrorCode.VALIDATE,
 			Message:   "Token 解析出错",
 			Error:     err,
 		})
 	}
 	if !token.Valid {
-		panic(think.Exception{
+		panic(thinko.Exception{
 			StateCode: http.StatusUnauthorized,
-			ErrorCode: think.ErrorCode.VALIDATE,
+			ErrorCode: thinko.ErrorCode.VALIDATE,
 			Message:   "无效 Token",
 		})
 	}
 	jsonBytes, err := json.Marshal(claims.Data)
 	if err != nil {
-		panic(think.Exception{
+		panic(thinko.Exception{
 			StateCode: http.StatusUnauthorized,
-			ErrorCode: think.ErrorCode.VALIDATE,
+			ErrorCode: thinko.ErrorCode.VALIDATE,
 			Message:   "Token 转换 json 出错",
 			Error:     err,
 		})

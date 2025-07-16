@@ -1,4 +1,4 @@
-package think
+package thinko
 
 import (
 	"context"
@@ -30,7 +30,7 @@ type Engine struct {
 	pool sync.Pool
 }
 
-// New 初始化 think 引擎
+// New 初始化 thinko 引擎
 func New() *Engine {
 	engine := &Engine{
 		routerGroup: routerGroup{

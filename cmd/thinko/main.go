@@ -15,14 +15,15 @@ import (
 	"strings"
 )
 
-const ThinkCli = `
-  _______ _     _       _     _____ _      _____ 
- |__   __| |   (_)     | |   / ____| |    |_   _|
-    | |  | |__  _ _ __ | | _| |    | |      | |  
-    | |  | '_ \| | '_ \| |/ / |    | |      | |  
-    | |  | | | | | | | |   <| |____| |____ _| |_ 
-    |_|  |_| |_|_|_| |_|_|\_\\_____|______|_____|
-[Think-CLI] 用于快速创建项目,快速生成 controller, model , service 通用代码的工具
+const ThinkoCli = `
+  _______ _     _       _          _____ _      _____ 
+ |__   __| |   (_)     | |        / ____| |    |_   _|
+    | |  | |__  _ _ __ | | _____ | |    | |      | |  
+    | |  | '_ \| | '_ \| |/ / _ \| |    | |      | |  
+    | |  | | | | | | | |   < (_) | |____| |____ _| |_ 
+    |_|  |_| |_|_|_| |_|_|\_\___/ \_____|______|_____|
+
+[Thinko-CLI] 用于快速创建项目,快速生成 controller, model , service 通用代码的工具
 `
 
 const EntityTemplate = `
@@ -55,7 +56,7 @@ const ApiTemplate = "package api\n\n" +
 const ControllerTemplate = `
 package controller
 
-func Create%s(ctx *think.Context) {
+func Create%s(ctx *thinko.Context) {
 	var req api.Create%sReq
 	ctx.BindStructValidate(&req)
 	err := service.%sService().Create%s(req)
@@ -66,7 +67,7 @@ func Create%s(ctx *think.Context) {
 	ctx.Success("ok")
 }
 
-func Delete%s(ctx *think.Context) {
+func Delete%s(ctx *thinko.Context) {
 	var req api.Delete%sReq
 	ctx.BindStructValidate(&req)
 	err := service.%sService().Delete%s(req.Id)
@@ -77,7 +78,7 @@ func Delete%s(ctx *think.Context) {
 	ctx.Success("ok")
 }
 
-func Edit%s(ctx *think.Context) {
+func Edit%s(ctx *thinko.Context) {
 	var req api.Edit%sReq
 	ctx.BindStructValidate(&req)
 	err := service.%sService().Edit%s(req)
@@ -88,7 +89,7 @@ func Edit%s(ctx *think.Context) {
 	ctx.Success("ok")
 }
 
-func %sList(ctx *think.Context) {
+func %sList(ctx *thinko.Context) {
 	var req api.%sListReq
 	ctx.BindStructValidate(&req)
 	res, err := service.%sService().%sList(req)
@@ -141,22 +142,22 @@ const DaoTemplate = `
 package dao
 
 func Create%s(req api.Create%sReq) (err error) {
-	_, err = think.Db("%s").Insert(req)
+	_, err = thinko.Db("%s").Insert(req)
 	return
 }
 
 func Delete%s(id int) (err error) {
-	err = think.Db("%s").Where("id", "=", id).Delete()
+	err = thinko.Db("%s").Where("id", "=", id).Delete()
 	return
 }
 
 func Edit%s(req api.Edit%sReq) (err error) {
-	err = think.Db("%s").Where("id", "=", req.Id).Update(req)
+	err = thinko.Db("%s").Where("id", "=", req.Id).Update(req)
 	return
 }
 
 func %sList(req api.%sListReq) (res api.%sListRes, err error) {
-	m := think.Db("%s")
+	m := thinko.Db("%s")
 	if req.PageNum == 0 {
 		req.PageNum = 1
 	}
@@ -177,9 +178,9 @@ func %sList(req api.%sListReq) (res api.%sListRes, err error) {
 
 func main() {
 	root := &cobra.Command{
-		Use:   "think",
-		Short: "Think GO 框架命令行工具",
-		Long:  ThinkCli,
+		Use:   "thinko",
+		Short: "Thinko 框架命令行工具",
+		Long:  ThinkoCli,
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) == 0 {
 				cmd.Help()
@@ -214,17 +215,17 @@ func initCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "init",
 		Short: "初始化一个项目",
-		Long:  "可通过[think init 项目名]的方式初始化项目",
+		Long:  "可通过[thinko init 项目名]的方式初始化项目",
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) == 0 {
-				color.Yellow("[Think CLI] 请输入项目名称")
+				color.Yellow("[Thinko CLI] 请输入项目名称")
 				return
 			}
-			git := exec.Command("git", "clone", "https://github.com/watsonhaw5566/think-go-template.git", args[0])
+			git := exec.Command("git", "clone", "https://github.com/watsonhaw5566/thinko-template.git", args[0])
 			git.Stdout = os.Stdout
 			git.Stderr = os.Stderr
 			if err := git.Run(); err != nil {
-				color.Red("[Think CLI]初始化项目失败")
+				color.Red("[Thinko CLI]初始化项目失败")
 				return
 			}
 			color.Green(fmt.Sprintf("初始化项目[%s]成功", args[0]))
@@ -237,10 +238,10 @@ func createCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "create",
 		Short: "创建一个业务模块",
-		Long:  "可通过[think create 模块名]的方式快速创建 api,controller,dao,service 示例文件,可根据具体业务在其之上修改",
+		Long:  "可通过[thinko create 模块名]的方式快速创建 api,controller,dao,service 示例文件,可根据具体业务在其之上修改",
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) == 0 {
-				color.Yellow("[Think CLI]你没有输入模块名称")
+				color.Yellow("[Thinko CLI]你没有输入模块名称")
 				return
 			}
 			createModule(args[0], ApiTemplate, 5, "api")
@@ -281,10 +282,10 @@ func syncCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "sync",
 		Short: "同步数据库表结构体",
-		Long:  "可通过[think sync 表名]的方式快速在entity文件夹下生成对应数据库表的结构体文件，不传表名默认是所有表",
+		Long:  "可通过[thinko sync 表名]的方式快速在entity文件夹下生成对应数据库表的结构体文件，不传表名默认是所有表",
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) == 0 {
-				db := think.ExecSql()
+				db := thinko.ExecSql()
 				rows, err := db.Queryx("SHOW TABLES")
 				if err != nil {
 					color.Red("数据库连接错误%v", err)
@@ -310,7 +311,7 @@ func syncCmd() *cobra.Command {
 
 // createCode 生成代码
 func createCode(tableName string) {
-	db := think.ExecSql()
+	db := thinko.ExecSql()
 	rows, err := db.Queryx(fmt.Sprintf("DESCRIBE %s", tableName))
 	if err != nil {
 		color.Red("数据表读取出错%v", err)
@@ -404,12 +405,12 @@ func versionCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "查看版本信息",
-		Long:  "查看 GO版本,ThinkGO 版本, Think CLI 版本",
+		Long:  "查看 GO版本,Thinko 版本, Think CLI 版本",
 		Run: func(cmd *cobra.Command, args []string) {
 			goVersion := runtime.Version()
 			fmt.Printf("当前环境GO版本: %s\n", goVersion)
-			fmt.Printf("当前环境 Think CLI版本: %s\n", "v1.0.0")
-			fmt.Printf("当前项目 Think GO 版本: %s\n", "v1.0.0")
+			fmt.Printf("当前环境 Thinko CLI版本: %s\n", "v1.0.0")
+			fmt.Printf("当前项目 Thinko 版本: %s\n", "v1.0.0")
 		},
 	}
 }
